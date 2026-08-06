@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TapDevPlatform", "TapDevPlatform\TapDevPlatform.csproj", "{66C1F3CE-5165-F6C2-C955-3EF909113CA6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{66C1F3CE-5165-F6C2-C955-3EF909113CA6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66C1F3CE-5165-F6C2-C955-3EF909113CA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66C1F3CE-5165-F6C2-C955-3EF909113CA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66C1F3CE-5165-F6C2-C955-3EF909113CA6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6AD89109-1388-4695-8EE9-3538FD0FEB1D}
+	EndGlobalSection
+EndGlobal
