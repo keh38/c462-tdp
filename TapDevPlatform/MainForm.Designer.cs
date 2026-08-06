@@ -28,34 +28,49 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             statusStrip = new StatusStrip();
             connectionStatusLabel = new ToolStripStatusLabel();
             matlabStatusLabel = new ToolStripStatusLabel();
+            subjectStatusLabel = new ToolStripStatusLabel();
             sceneNameLabel = new ToolStripStatusLabel();
-            tabControl1 = new TabControl();
-            elementsPage = new TabPage();
+            tabControl = new TabControl();
             patternsPage = new TabPage();
-            propertyGrid = new PropertyGrid();
-            comboBox1 = new ComboBox();
-            richTextBox1 = new RichTextBox();
+            dataGridView1 = new DataGridView();
+            RunButton = new Button();
+            matlabFunctionDropDown = new ComboBox();
+            chatListBox = new ListBox();
             textBox1 = new TextBox();
-            listBox1 = new ListBox();
-            comboBox2 = new ComboBox();
-            comboBox3 = new ComboBox();
-            button1 = new Button();
+            richTextBox1 = new RichTextBox();
+            elementsPage = new TabPage();
+            errorTextBox = new TextBox();
+            NewButton = new Button();
+            DeleteButton = new Button();
+            SaveButton = new Button();
+            signalGraph = new ScottPlot.WinForms.FormsPlot();
+            configFileDropDown = new ComboBox();
+            propertyGrid = new PropertyGrid();
+            imageList = new ImageList(components);
+            dataPathTextBox = new TextBox();
+            logTextBox = new TextBox();
+            StopButton = new Button();
+            label1 = new Label();
             statusStrip.SuspendLayout();
-            tabControl1.SuspendLayout();
-            elementsPage.SuspendLayout();
+            tabControl.SuspendLayout();
             patternsPage.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
+            elementsPage.SuspendLayout();
             SuspendLayout();
             // 
             // statusStrip
             // 
             statusStrip.ImageScalingSize = new Size(20, 20);
-            statusStrip.Items.AddRange(new ToolStripItem[] { connectionStatusLabel, matlabStatusLabel, sceneNameLabel });
-            statusStrip.Location = new Point(0, 527);
+            statusStrip.Items.AddRange(new ToolStripItem[] { connectionStatusLabel, matlabStatusLabel, subjectStatusLabel, sceneNameLabel });
+            statusStrip.Location = new Point(0, 625);
             statusStrip.Name = "statusStrip";
-            statusStrip.Size = new Size(987, 30);
+            statusStrip.Padding = new Padding(1, 0, 12, 0);
+            statusStrip.Size = new Size(864, 29);
             statusStrip.TabIndex = 0;
             statusStrip.Text = "statusStrip1";
             // 
@@ -63,7 +78,7 @@
             // 
             connectionStatusLabel.BorderSides = ToolStripStatusLabelBorderSides.Right;
             connectionStatusLabel.Name = "connectionStatusLabel";
-            connectionStatusLabel.Size = new Size(111, 24);
+            connectionStatusLabel.Size = new Size(90, 24);
             connectionStatusLabel.Text = "Not connected";
             // 
             // matlabStatusLabel
@@ -71,138 +86,273 @@
             matlabStatusLabel.BorderSides = ToolStripStatusLabelBorderSides.Right;
             matlabStatusLabel.Image = Properties.Resources.Matlab_Logo_32;
             matlabStatusLabel.Name = "matlabStatusLabel";
-            matlabStatusLabel.Size = new Size(153, 24);
+            matlabStatusLabel.Size = new Size(125, 24);
             matlabStatusLabel.Text = "MATLAB available";
+            // 
+            // subjectStatusLabel
+            // 
+            subjectStatusLabel.BorderSides = ToolStripStatusLabelBorderSides.Right;
+            subjectStatusLabel.Name = "subjectStatusLabel";
+            subjectStatusLabel.Size = new Size(53, 24);
+            subjectStatusLabel.Text = "Subject:";
             // 
             // sceneNameLabel
             // 
             sceneNameLabel.BorderSides = ToolStripStatusLabelBorderSides.Right;
             sceneNameLabel.Name = "sceneNameLabel";
-            sceneNameLabel.Size = new Size(55, 24);
+            sceneNameLabel.Size = new Size(45, 24);
             sceneNameLabel.Text = "Scene:";
             // 
-            // tabControl1
+            // tabControl
             // 
-            tabControl1.Controls.Add(elementsPage);
-            tabControl1.Controls.Add(patternsPage);
-            tabControl1.Dock = DockStyle.Fill;
-            tabControl1.Location = new Point(0, 0);
-            tabControl1.Name = "tabControl1";
-            tabControl1.SelectedIndex = 0;
-            tabControl1.Size = new Size(987, 527);
-            tabControl1.TabIndex = 1;
-            // 
-            // elementsPage
-            // 
-            elementsPage.Controls.Add(comboBox1);
-            elementsPage.Controls.Add(propertyGrid);
-            elementsPage.Location = new Point(4, 29);
-            elementsPage.Name = "elementsPage";
-            elementsPage.Padding = new Padding(3);
-            elementsPage.Size = new Size(979, 494);
-            elementsPage.TabIndex = 0;
-            elementsPage.Text = "Elements";
-            elementsPage.UseVisualStyleBackColor = true;
+            tabControl.Controls.Add(patternsPage);
+            tabControl.Controls.Add(elementsPage);
+            tabControl.Dock = DockStyle.Fill;
+            tabControl.Location = new Point(0, 0);
+            tabControl.Margin = new Padding(3, 2, 3, 2);
+            tabControl.Name = "tabControl";
+            tabControl.SelectedIndex = 0;
+            tabControl.Size = new Size(864, 625);
+            tabControl.TabIndex = 1;
             // 
             // patternsPage
             // 
-            patternsPage.Controls.Add(button1);
-            patternsPage.Controls.Add(comboBox3);
-            patternsPage.Controls.Add(comboBox2);
-            patternsPage.Controls.Add(listBox1);
+            patternsPage.Controls.Add(label1);
+            patternsPage.Controls.Add(StopButton);
+            patternsPage.Controls.Add(logTextBox);
+            patternsPage.Controls.Add(dataPathTextBox);
+            patternsPage.Controls.Add(dataGridView1);
+            patternsPage.Controls.Add(RunButton);
+            patternsPage.Controls.Add(matlabFunctionDropDown);
+            patternsPage.Controls.Add(chatListBox);
             patternsPage.Controls.Add(textBox1);
             patternsPage.Controls.Add(richTextBox1);
-            patternsPage.Location = new Point(4, 29);
+            patternsPage.Location = new Point(4, 24);
+            patternsPage.Margin = new Padding(3, 2, 3, 2);
             patternsPage.Name = "patternsPage";
-            patternsPage.Padding = new Padding(3);
-            patternsPage.Size = new Size(979, 494);
+            patternsPage.Padding = new Padding(3, 2, 3, 2);
+            patternsPage.Size = new Size(856, 597);
             patternsPage.TabIndex = 1;
             patternsPage.Text = "Patterns";
             patternsPage.UseVisualStyleBackColor = true;
             // 
-            // propertyGrid
+            // dataGridView1
             // 
-            propertyGrid.Location = new Point(19, 58);
-            propertyGrid.Name = "propertyGrid";
-            propertyGrid.Size = new Size(399, 397);
-            propertyGrid.TabIndex = 0;
-            propertyGrid.ToolbarVisible = false;
+            dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView1.Location = new Point(248, 362);
+            dataGridView1.Name = "dataGridView1";
+            dataGridView1.Size = new Size(591, 210);
+            dataGridView1.TabIndex = 6;
             // 
-            // comboBox1
+            // RunButton
             // 
-            comboBox1.FormattingEnabled = true;
-            comboBox1.Location = new Point(19, 15);
-            comboBox1.Name = "comboBox1";
-            comboBox1.Size = new Size(228, 28);
-            comboBox1.TabIndex = 1;
+            RunButton.Location = new Point(17, 362);
+            RunButton.Margin = new Padding(3, 2, 3, 2);
+            RunButton.Name = "RunButton";
+            RunButton.Size = new Size(86, 22);
+            RunButton.TabIndex = 5;
+            RunButton.Text = "RUN";
+            RunButton.UseVisualStyleBackColor = true;
+            RunButton.Click += RunButton_Click;
             // 
-            // richTextBox1
+            // matlabFunctionDropDown
             // 
-            richTextBox1.BorderStyle = BorderStyle.FixedSingle;
-            richTextBox1.Location = new Point(283, 29);
-            richTextBox1.Name = "richTextBox1";
-            richTextBox1.ReadOnly = true;
-            richTextBox1.Size = new Size(672, 273);
-            richTextBox1.TabIndex = 0;
-            richTextBox1.Text = "";
+            matlabFunctionDropDown.FormattingEnabled = true;
+            matlabFunctionDropDown.Location = new Point(17, 310);
+            matlabFunctionDropDown.Margin = new Padding(3, 2, 3, 2);
+            matlabFunctionDropDown.Name = "matlabFunctionDropDown";
+            matlabFunctionDropDown.Size = new Size(216, 23);
+            matlabFunctionDropDown.TabIndex = 4;
+            // 
+            // chatListBox
+            // 
+            chatListBox.FormattingEnabled = true;
+            chatListBox.ItemHeight = 15;
+            chatListBox.Location = new Point(17, 26);
+            chatListBox.Margin = new Padding(3, 2, 3, 2);
+            chatListBox.Name = "chatListBox";
+            chatListBox.Size = new Size(216, 259);
+            chatListBox.TabIndex = 2;
             // 
             // textBox1
             // 
             textBox1.BorderStyle = BorderStyle.FixedSingle;
-            textBox1.Location = new Point(283, 317);
+            textBox1.Location = new Point(248, 238);
+            textBox1.Margin = new Padding(3, 2, 3, 2);
             textBox1.Multiline = true;
             textBox1.Name = "textBox1";
-            textBox1.Size = new Size(672, 126);
+            textBox1.ScrollBars = ScrollBars.Vertical;
+            textBox1.Size = new Size(588, 95);
             textBox1.TabIndex = 1;
             // 
-            // listBox1
+            // richTextBox1
             // 
-            listBox1.FormattingEnabled = true;
-            listBox1.Location = new Point(19, 75);
-            listBox1.Name = "listBox1";
-            listBox1.Size = new Size(246, 204);
-            listBox1.TabIndex = 2;
+            richTextBox1.BorderStyle = BorderStyle.FixedSingle;
+            richTextBox1.Location = new Point(248, 22);
+            richTextBox1.Margin = new Padding(3, 2, 3, 2);
+            richTextBox1.Name = "richTextBox1";
+            richTextBox1.ReadOnly = true;
+            richTextBox1.ScrollBars = RichTextBoxScrollBars.Vertical;
+            richTextBox1.Size = new Size(588, 206);
+            richTextBox1.TabIndex = 0;
+            richTextBox1.Text = "";
             // 
-            // comboBox2
+            // elementsPage
             // 
-            comboBox2.FormattingEnabled = true;
-            comboBox2.Location = new Point(19, 29);
-            comboBox2.Name = "comboBox2";
-            comboBox2.Size = new Size(246, 28);
-            comboBox2.TabIndex = 3;
+            elementsPage.BackColor = SystemColors.Control;
+            elementsPage.Controls.Add(errorTextBox);
+            elementsPage.Controls.Add(NewButton);
+            elementsPage.Controls.Add(DeleteButton);
+            elementsPage.Controls.Add(SaveButton);
+            elementsPage.Controls.Add(signalGraph);
+            elementsPage.Controls.Add(configFileDropDown);
+            elementsPage.Controls.Add(propertyGrid);
+            elementsPage.Location = new Point(4, 24);
+            elementsPage.Margin = new Padding(3, 2, 3, 2);
+            elementsPage.Name = "elementsPage";
+            elementsPage.Padding = new Padding(3, 2, 3, 2);
+            elementsPage.Size = new Size(856, 597);
+            elementsPage.TabIndex = 0;
+            elementsPage.Text = "Elements";
             // 
-            // comboBox3
+            // errorTextBox
             // 
-            comboBox3.FormattingEnabled = true;
-            comboBox3.Location = new Point(19, 317);
-            comboBox3.Name = "comboBox3";
-            comboBox3.Size = new Size(246, 28);
-            comboBox3.TabIndex = 4;
+            errorTextBox.ForeColor = Color.Firebrick;
+            errorTextBox.Location = new Point(407, 398);
+            errorTextBox.Multiline = true;
+            errorTextBox.Name = "errorTextBox";
+            errorTextBox.ReadOnly = true;
+            errorTextBox.Size = new Size(417, 148);
+            errorTextBox.TabIndex = 6;
             // 
-            // button1
+            // NewButton
             // 
-            button1.Location = new Point(19, 368);
-            button1.Name = "button1";
-            button1.Size = new Size(246, 29);
-            button1.TabIndex = 5;
-            button1.Text = "button1";
-            button1.UseVisualStyleBackColor = true;
+            NewButton.Location = new Point(177, 11);
+            NewButton.Name = "NewButton";
+            NewButton.Size = new Size(59, 23);
+            NewButton.TabIndex = 5;
+            NewButton.Text = "New";
+            NewButton.UseVisualStyleBackColor = true;
+            NewButton.Click += NewButton_Click;
+            // 
+            // DeleteButton
+            // 
+            DeleteButton.Location = new Point(307, 11);
+            DeleteButton.Name = "DeleteButton";
+            DeleteButton.Size = new Size(59, 23);
+            DeleteButton.TabIndex = 4;
+            DeleteButton.Text = "Delete";
+            DeleteButton.UseVisualStyleBackColor = true;
+            DeleteButton.Click += DeleteButton_Click;
+            // 
+            // SaveButton
+            // 
+            SaveButton.Location = new Point(242, 11);
+            SaveButton.Name = "SaveButton";
+            SaveButton.Size = new Size(59, 23);
+            SaveButton.TabIndex = 3;
+            SaveButton.Text = "Save";
+            SaveButton.UseVisualStyleBackColor = true;
+            SaveButton.Click += SaveButton_Click;
+            // 
+            // signalGraph
+            // 
+            signalGraph.BackColor = SystemColors.Control;
+            signalGraph.Location = new Point(372, 44);
+            signalGraph.Name = "signalGraph";
+            signalGraph.Size = new Size(467, 327);
+            signalGraph.TabIndex = 2;
+            // 
+            // configFileDropDown
+            // 
+            configFileDropDown.DropDownStyle = ComboBoxStyle.DropDownList;
+            configFileDropDown.FormattingEnabled = true;
+            configFileDropDown.Location = new Point(17, 11);
+            configFileDropDown.Margin = new Padding(3, 2, 3, 2);
+            configFileDropDown.Name = "configFileDropDown";
+            configFileDropDown.Size = new Size(139, 23);
+            configFileDropDown.TabIndex = 1;
+            configFileDropDown.SelectedIndexChanged += configFileDropDown_SelectedIndexChanged;
+            // 
+            // propertyGrid
+            // 
+            propertyGrid.Location = new Point(17, 44);
+            propertyGrid.Margin = new Padding(3, 2, 3, 2);
+            propertyGrid.Name = "propertyGrid";
+            propertyGrid.Size = new Size(349, 523);
+            propertyGrid.TabIndex = 0;
+            propertyGrid.ToolbarVisible = false;
+            propertyGrid.PropertyValueChanged += propertyGrid_PropertyValueChanged;
+            // 
+            // imageList
+            // 
+            imageList.ColorDepth = ColorDepth.Depth32Bit;
+            imageList.ImageStream = (ImageListStreamer)resources.GetObject("imageList.ImageStream");
+            imageList.TransparentColor = Color.Transparent;
+            imageList.Images.SetKeyName(0, "nav_plain_red.png");
+            imageList.Images.SetKeyName(1, "nav_plain_green.png");
+            // 
+            // dataPathTextBox
+            // 
+            dataPathTextBox.Location = new Point(17, 389);
+            dataPathTextBox.Name = "dataPathTextBox";
+            dataPathTextBox.ReadOnly = true;
+            dataPathTextBox.Size = new Size(216, 23);
+            dataPathTextBox.TabIndex = 7;
+            // 
+            // logTextBox
+            // 
+            logTextBox.Location = new Point(17, 418);
+            logTextBox.Multiline = true;
+            logTextBox.Name = "logTextBox";
+            logTextBox.ReadOnly = true;
+            logTextBox.ScrollBars = ScrollBars.Vertical;
+            logTextBox.Size = new Size(216, 154);
+            logTextBox.TabIndex = 8;
+            // 
+            // StopButton
+            // 
+            StopButton.Location = new Point(147, 362);
+            StopButton.Margin = new Padding(3, 2, 3, 2);
+            StopButton.Name = "StopButton";
+            StopButton.Size = new Size(86, 22);
+            StopButton.TabIndex = 9;
+            StopButton.Text = "STOP";
+            StopButton.UseVisualStyleBackColor = true;
+            StopButton.Click += StopButton_Click;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(17, 293);
+            label1.Name = "label1";
+            label1.Size = new Size(144, 15);
+            label1.TabIndex = 10;
+            label1.Text = "MATLAB analysis function";
             // 
             // MainForm
             // 
-            AutoScaleDimensions = new SizeF(8F, 20F);
+            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(987, 557);
-            Controls.Add(tabControl1);
+            ClientSize = new Size(864, 654);
+            Controls.Add(tabControl);
             Controls.Add(statusStrip);
+            FormBorderStyle = FormBorderStyle.Fixed3D;
+            Margin = new Padding(3, 2, 3, 2);
+            MaximizeBox = false;
             Name = "MainForm";
             Text = "Tapping Pattern Development Platform";
+            FormClosing += MainForm_FormClosing;
+            Load += MainForm_Load;
+            Shown += MainForm_Shown;
             statusStrip.ResumeLayout(false);
             statusStrip.PerformLayout();
-            tabControl1.ResumeLayout(false);
-            elementsPage.ResumeLayout(false);
+            tabControl.ResumeLayout(false);
             patternsPage.ResumeLayout(false);
             patternsPage.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
+            elementsPage.ResumeLayout(false);
+            elementsPage.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -213,16 +363,27 @@
         private ToolStripStatusLabel connectionStatusLabel;
         private ToolStripStatusLabel matlabStatusLabel;
         private ToolStripStatusLabel sceneNameLabel;
-        private TabControl tabControl1;
+        private TabControl tabControl;
         private TabPage elementsPage;
         private TabPage patternsPage;
         private PropertyGrid propertyGrid;
-        private ComboBox comboBox1;
-        private Button button1;
-        private ComboBox comboBox3;
-        private ComboBox comboBox2;
-        private ListBox listBox1;
+        private ComboBox configFileDropDown;
+        private Button RunButton;
+        private ComboBox matlabFunctionDropDown;
+        private ListBox chatListBox;
         private TextBox textBox1;
         private RichTextBox richTextBox1;
+        private DataGridView dataGridView1;
+        private ScottPlot.WinForms.FormsPlot signalGraph;
+        private ImageList imageList;
+        private Button DeleteButton;
+        private Button SaveButton;
+        private ToolStripStatusLabel subjectStatusLabel;
+        private Button NewButton;
+        private TextBox errorTextBox;
+        private TextBox logTextBox;
+        private TextBox dataPathTextBox;
+        private Button StopButton;
+        private Label label1;
     }
 }

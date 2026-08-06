@@ -3,10 +3,24 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="C462.HTS" Version="1.6.0" />
+    <PackageReference Include="C462.Shared" Version="1.28.0" />
+    <PackageReference Include="KLib" Version="1.8.1" />
+    <PackageReference Include="KLib.Controls" Version="1.8.0" />
+    <PackageReference Include="KLib.Net" Version="2.6.0" />
+    <PackageReference Include="ScottPlot.WinForms" Version="5.1.59" />
+    <PackageReference Include="Serilog" Version="4.4.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="SerilogTraceListener" Version="3.2.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">
@@ -22,5 +36,17 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="MathWorks.MATLAB.Engine">
+			<HintPath>C:\Program Files\MATLAB\R2023b\extern\dotnet\netstandard2.0\MathWorks.MATLAB.Engine.dll</HintPath>
+		</Reference>
+		<Reference Include="MathWorks.MATLAB.Runtime">
+			<HintPath>C:\Program Files\MATLAB\R2023b\extern\dotnet\netstandard2.0\MathWorks.MATLAB.Runtime.dll</HintPath>
+		</Reference>
+		<Reference Include="MathWorks.MATLAB.Types">
+			<HintPath>C:\Program Files\MATLAB\R2023b\extern\dotnet\netstandard2.0\MathWorks.MATLAB.Types.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 
 </Project>
