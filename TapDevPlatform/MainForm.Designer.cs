@@ -37,6 +37,7 @@
             sceneNameLabel = new ToolStripStatusLabel();
             tabControl = new TabControl();
             patternsPage = new TabPage();
+            testApiButton = new Button();
             newChatButton = new Button();
             label2 = new Label();
             label1 = new Label();
@@ -58,6 +59,7 @@
             configFileDropDown = new ComboBox();
             propertyGrid = new PropertyGrid();
             imageList = new ImageList(components);
+            setKeyButton = new Button();
             statusStrip.SuspendLayout();
             tabControl.SuspendLayout();
             patternsPage.SuspendLayout();
@@ -117,6 +119,8 @@
             // 
             // patternsPage
             // 
+            patternsPage.Controls.Add(setKeyButton);
+            patternsPage.Controls.Add(testApiButton);
             patternsPage.Controls.Add(newChatButton);
             patternsPage.Controls.Add(label2);
             patternsPage.Controls.Add(label1);
@@ -136,6 +140,16 @@
             patternsPage.TabIndex = 1;
             patternsPage.Text = "Patterns";
             patternsPage.UseVisualStyleBackColor = true;
+            // 
+            // testApiButton
+            // 
+            testApiButton.Location = new Point(150, 23);
+            testApiButton.Name = "testApiButton";
+            testApiButton.Size = new Size(94, 29);
+            testApiButton.TabIndex = 13;
+            testApiButton.Text = "Test";
+            testApiButton.UseVisualStyleBackColor = true;
+            testApiButton.Click += testApiButton_Click;
             // 
             // newChatButton
             // 
@@ -349,6 +363,16 @@
             imageList.Images.SetKeyName(0, "nav_plain_red.png");
             imageList.Images.SetKeyName(1, "nav_plain_green.png");
             // 
+            // setKeyButton
+            // 
+            setKeyButton.Location = new Point(138, 460);
+            setKeyButton.Name = "setKeyButton";
+            setKeyButton.Size = new Size(94, 29);
+            setKeyButton.TabIndex = 14;
+            setKeyButton.Text = "Set key";
+            setKeyButton.UseVisualStyleBackColor = true;
+            setKeyButton.Click += setKeyButton_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -405,5 +429,7 @@
         private Label label1;
         private Button newChatButton;
         private Label label2;
+        private Button testApiButton;
+        private Button setKeyButton;
     }
 }

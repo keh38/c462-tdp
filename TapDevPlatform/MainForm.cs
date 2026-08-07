@@ -15,6 +15,8 @@ using ScottPlot;
 using KLib.Signals;
 using System.Runtime;
 using Newtonsoft.Json;
+using TDP.Api;
+using TDP.Security;
 
 namespace TapDevPlatform
 {
@@ -644,11 +646,44 @@ namespace TapDevPlatform
 
             string matlabFunction = TdpAppSettings.LastMatlabFile;
             logTextBox.AppendText($"Running MATLAB function '{matlabFunction}'..." + Environment.NewLine);
-            
-            string wavFilePath =Path.Combine(SharedFileLocations.HtsSubjectDataFolder, Path.GetFileNameWithoutExtension(_dataPath) + "-Trial001.wav");
+
+            string wavFilePath = Path.Combine(SharedFileLocations.HtsSubjectDataFolder, Path.GetFileNameWithoutExtension(_dataPath) + "-Trial001.wav");
             Log.Information($"Running MATLAB function '{matlabFunction}' on file '{wavFilePath}'");
             string result = MATLAB.RunFunction(matlabFunction, wavFilePath);
             logTextBox.AppendText($"MATLAB analysis result:{Environment.NewLine}{result}{Environment.NewLine}");
+        }
+
+        private async void testApiButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string key = CredentialStore.Load(ApiKeyProvisioning.Target);
+                if (string.IsNullOrEmpty(key))
+                {
+                    logTextBox.Text = "No API key stored. Run Set API Key… first.";
+                    return;
+                }
+
+                testApiButton.Enabled = false;
+                logTextBox.Text = "Calling…";
+
+                var client = new AnthropicClient(key);            // default model claude-sonnet-5
+                string reply = await client.SendAsync("Reply with exactly: pong");
+                logTextBox.Text = reply;                            // expect: pong
+            }
+            catch (Exception ex)
+            {
+                logTextBox.Text = ex.Message;                       // API error body lands here verbatim
+            }
+            finally
+            {
+                testApiButton.Enabled = true;
+            }
+        }
+
+        private void setKeyButton_Click(object sender, EventArgs e)
+        {
+            ApiKeyProvisioning.PromptAndStore(this);
         }
     }
 }
