@@ -9,15 +9,11 @@ using MathWorks.MATLAB.Types;
 
 using Serilog;
 
-namespace HTSController
+namespace TapDevPlatform
 {
     public static class MATLAB
     {
         private static dynamic _engine;
-
-        public delegate void UpdateMetricsDelegate(MATLABStruct data);
-        public static UpdateMetricsDelegate UpdateMetrics;
-        private static void OnUpdateMetrics(MATLABStruct data) { UpdateMetrics?.Invoke(data); }
 
         public static bool IsInitialized { get; private set; }
 
@@ -62,34 +58,15 @@ namespace HTSController
             {
                 try
                 {
-                    dynamic data = _engine.eval($"{functionName}('{dataFilePath}')");
-                    //Log.Information(data.GetType().ToString());
-                    if (data is MATLABStruct)
-                    {
-                        Log.Information($"number metric fields = {data.GetFieldNames().Count}");
-                        foreach (var n in data.GetFieldNames())
-                        {
-                            string value = "";
-                            dynamic x = data.GetField(n);
-                            try { value = x; } catch { double dval = x; value = dval.ToString(); }
-                            result += $"{n} = {value}" + Environment.NewLine;
-
-                            OnUpdateMetrics(data);
-                        }
-                    }
-                    else if (data is MATLABArray)
-                    {
-                        result = data;
-                    }
+                    _engine.eval($"{functionName}('{dataFilePath}')");
+                    result = "OK";
                 }
                 catch (Exception ex)
                 {
                     result = ex.Message.Replace("\n", Environment.NewLine); // "Error evaluating MATLAB function";
                     Log.Error($"Error evaluating MATLAB function '{functionName}'\n{ex.Message}");
                 }
-
             }
-
             return result;
         }
 

@@ -12,6 +12,7 @@ namespace TapDevPlatform
     {
         public Rectangle lastPosition = new Rectangle();
         public string lastConfigFile = "";
+        public string lastMatlabFile = "";
 
         private static TdpAppSettings _instance = null;
         private static TdpAppSettings instance
@@ -43,6 +44,12 @@ namespace TapDevPlatform
         {
             get { return instance.lastConfigFile; }
             set { instance.lastConfigFile = value; Save(); }
+        }
+
+        public static string LastMatlabFile
+        {
+            get { return instance.lastMatlabFile; }
+            set { instance.lastMatlabFile = value; Save(); }
         }
 
         private static void Save()

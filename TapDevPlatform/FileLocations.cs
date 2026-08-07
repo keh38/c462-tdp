@@ -11,6 +11,7 @@ namespace TapDevPlatform
     internal static class FileLocations
     {
         public static string TdpFolder => Path.Combine(SharedFileLocations.EplFolder, "TDP");
-        public static string SettingsFile { get { return Path.Combine(TdpFolder, "TdpAppSettings.xml"); } }
+        public static string SettingsFile => Path.Combine(TdpFolder, "TdpAppSettings.xml");
+        public static string MatlabFolder => Path.Combine(TdpFolder, "MATLAB");
     }
 }

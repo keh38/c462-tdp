@@ -14,6 +14,7 @@ using Tapping;
 using ScottPlot;
 using KLib.Signals;
 using System.Runtime;
+using Newtonsoft.Json;
 
 namespace TapDevPlatform
 {
@@ -27,6 +28,10 @@ namespace TapDevPlatform
         private TappingConfiguration _currentConfig;
         private float _plotSampleRate = 48000;
 
+        private string _dataPath;
+        private bool _runStarted;
+        private bool _endRunStarted;
+
         // -------------------------------------------------------------------------
         // Initialization
         // -------------------------------------------------------------------------
@@ -39,7 +44,7 @@ namespace TapDevPlatform
             sceneNameLabel.Visible = false;
             errorTextBox.Visible = false;
 
-            StopButton.Enabled = false;
+            stopButton.Enabled = false;
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -48,6 +53,7 @@ namespace TapDevPlatform
             _network.SceneChangeHandler += HandleSceneChange;
 
             InitSignalGraph();
+            EnumerateMATLABFunctions();
         }
 
         private async void MainForm_Shown(object sender, EventArgs e)
@@ -70,10 +76,10 @@ namespace TapDevPlatform
             var haveMATLAB = await MATLAB.Initialize();
             matlabStatusLabel.Visible = haveMATLAB;
             matlabStatusLabel.Text = "Available";
-            //if (haveMATLAB && !string.IsNullOrEmpty(subjectPageControl.Subject))
-            //{
-            //    MATLAB.AddPath(FileLocations.GetMATLABFolder(""));
-            //}
+            if (haveMATLAB)
+            {
+                MATLAB.AddPath(FileLocations.MatlabFolder);
+            }
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -112,8 +118,8 @@ namespace TapDevPlatform
                 {
                     StartPosition = FormStartPosition.Manual;
                     Location = new Point(savedBounds.X, savedBounds.Y);
-                    Width = savedBounds.Width;
-                    Height = savedBounds.Height;
+                    //Width = savedBounds.Width;
+                    //Height = savedBounds.Height;
                 }
                 else
                 {
@@ -175,6 +181,28 @@ namespace TapDevPlatform
             signalGraph.Refresh();
         }
 
+        private void EnumerateMATLABFunctions()
+        {
+            var mFileNames = Directory.GetFiles(FileLocations.MatlabFolder, "*.m", SearchOption.TopDirectoryOnly)
+                .Select(Path.GetFileNameWithoutExtension)
+                .ToList();
+            matlabFunctionDropDown.Items.Clear();
+            matlabFunctionDropDown.Items.AddRange(mFileNames.ToArray());
+
+            if (mFileNames.Count == 0)
+                return;
+
+            if (mFileNames.Contains(TdpAppSettings.LastMatlabFile))
+            {
+                matlabFunctionDropDown.SelectedItem = TdpAppSettings.LastMatlabFile;
+            }
+            else
+            {
+                matlabFunctionDropDown.SelectedIndex = 0;
+                TdpAppSettings.LastMatlabFile = mFileNames[0];
+            }
+        }
+
         // -------------------------------------------------------------------------
         // Network handlers
         // -------------------------------------------------------------------------
@@ -210,6 +238,38 @@ namespace TapDevPlatform
                     var playerSubject = $"{subjectInfo.Project}/{subjectInfo.Subject}";
                     Debug.WriteLine($"Received SubjectChanged message: {playerSubject}");
                     UpdateProjectAndSubject(playerSubject);
+                    break;
+                case "Progress":
+                    break;
+                case "ReceiveData":
+                    //var filePayload = JsonConvert.DeserializeObject<TextFilePayload>(payload.Data);
+                    //if (filePayload.Destination == FileDestination.SubjectMetadata)
+                    //{
+                    //    string audiogramPath = Path.Combine(SharedFileLocations.SubjectMetaFolder, filePayload.Filename);
+                    //    if (!Directory.Exists(SharedFileLocations.SubjectMetaFolder))
+                    //    {
+                    //        Directory.CreateDirectory(SharedFileLocations.SubjectMetaFolder);
+                    //    }
+                    //    File.WriteAllText(audiogramPath, filePayload.Content);
+                    //    break;
+                    //}
+                    //string filePath = Path.Combine(SharedFileLocations.HtsSubjectDataFolder, filePayload.Filename);
+                    //if (File.Exists(filePath))
+                    //{
+                    //    Log.Warning($"File {filePath} already exists, backing up. This shouldn't happen.");
+                    //    File.Move(filePath, filePath + ".bak");
+                    //}
+                    //File.WriteAllText(filePath, filePayload.Content);
+                    break;
+                case "Status":
+                    Log.Information($"Status update: {payload.Data}");
+                    Invoke(new Action(() => logTextBox.AppendText($"- {payload.Data}{Environment.NewLine}")));
+                    break;
+                case "Error":
+                    Invoke(new Action(() => { EndRun("Error", payload.Data); }));
+                    break;
+                case "Finished":
+                    Invoke(new Action(() => { EndRun("Finished", payload.Data); }));
                     break;
             }
         }
@@ -479,16 +539,59 @@ namespace TapDevPlatform
         // -------------------------------------------------------------------------
         private async void RunButton_Click(object sender, EventArgs e)
         {
-            RunButton.Enabled = false;
-            if (_currentHtsScene != "Tapping")
+            runButton.Enabled = false;
+            dataPathTextBox.Text = "";
+            logTextBox.Clear();
+            //logTextBox.Text = "";
+            _runStarted = false;
+            _endRunStarted = false;
+
+            //if (_currentHtsScene != "Tapping")
             {
                 var success = await ChangeRemoteScene("Tapping");
+                if (!success)
+                {
+                    logTextBox.Text = "ERROR: Failed to change scene to Tapping on tablet.";
+                    Log.Warning("Failed to change scene to Tapping on tablet.");
+                    runButton.Enabled = true;
+                    return;
+                }
             }
+
+            var payload = new TappingConfigPayload
+            {
+                Configuration = _currentConfig,
+                Arguments = ""
+            };
+            var result = _network.SendXmlRequest<string>("Initialize", payload);
+            _dataPath = result ?? "";
+
+            if (string.IsNullOrEmpty(_dataPath))
+            {
+                logTextBox.Text = "ERROR: Failed to initialize Tapping scene on tablet.";
+                Log.Warning("Failed to initialize Tapping scene on tablet.");
+                runButton.Enabled = true;
+                return;
+            }
+
+            dataPathTextBox.Text = Path.GetFileName(_dataPath);
+            stopButton.Enabled = true;
+            logTextBox.AppendText("OK" + Environment.NewLine);
+            _network.SendMessage("Begin");
+            _runStarted = true;
         }
 
         private void StopButton_Click(object sender, EventArgs e)
         {
+            Log.Information("User stopping measurement");
 
+            stopButton.Enabled = false;
+            _network.SendMessage("Abort");
+        }
+
+        private void matlabFunctionDropDown_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            TdpAppSettings.LastMatlabFile = matlabFunctionDropDown.SelectedItem.ToString();
         }
 
         private async Task<bool> ChangeRemoteScene(string sceneName)
@@ -510,5 +613,42 @@ namespace TapDevPlatform
             return success;
         }
 
+        private async void EndRun(string message, string status)
+        {
+            if (!_runStarted || _endRunStarted) return;
+            _endRunStarted = true;
+
+            Log.Information("Run ending");
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                logTextBox.AppendText($"{Environment.NewLine}{status}{Environment.NewLine}");
+            }
+
+            stopButton.Enabled = false;
+            runButton.Enabled = true;
+
+            if (message == "Error" || status.Contains("aborted"))
+                return;
+
+            AnalyzeData();
+        }
+
+        private void AnalyzeData()
+        {
+            if (string.IsNullOrEmpty(_dataPath))
+                return;
+
+            if (string.IsNullOrEmpty(TdpAppSettings.LastMatlabFile))
+                return;
+
+            string matlabFunction = TdpAppSettings.LastMatlabFile;
+            logTextBox.AppendText($"Running MATLAB function '{matlabFunction}'..." + Environment.NewLine);
+            
+            string wavFilePath =Path.Combine(SharedFileLocations.HtsSubjectDataFolder, Path.GetFileNameWithoutExtension(_dataPath) + "-Trial001.wav");
+            Log.Information($"Running MATLAB function '{matlabFunction}' on file '{wavFilePath}'");
+            string result = MATLAB.RunFunction(matlabFunction, wavFilePath);
+            logTextBox.AppendText($"MATLAB analysis result:{Environment.NewLine}{result}{Environment.NewLine}");
+        }
     }
 }
