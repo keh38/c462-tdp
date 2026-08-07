@@ -4,5 +4,11 @@
     <Compile Update="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="PatternsTab.Generate.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="PatternsTab.MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
   </ItemGroup>
 </Project>

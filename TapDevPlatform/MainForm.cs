@@ -34,6 +34,9 @@ namespace TapDevPlatform
         private bool _runStarted;
         private bool _endRunStarted;
 
+        private ConversationManager _conversation = null;
+        private string _subjectName = "_unnamed";
+
         // -------------------------------------------------------------------------
         // Initialization
         // -------------------------------------------------------------------------
@@ -47,6 +50,8 @@ namespace TapDevPlatform
             errorTextBox.Visible = false;
 
             stopButton.Enabled = false;
+
+            InitializePatternsTab();
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -311,6 +316,8 @@ namespace TapDevPlatform
             }
             var project = parts[0];
             var subject = parts[1];
+            _subjectName = subject;
+
             Log.Information($"Updating project to '{project}' and subject to '{subject}'.");
 
             SharedFileLocations.SetHtsSubject(project, subject);
@@ -541,39 +548,53 @@ namespace TapDevPlatform
         // -------------------------------------------------------------------------
         private async void RunButton_Click(object sender, EventArgs e)
         {
+            await StartTappingRunAsync();
+        }
+
+        /// <summary>
+        /// Starts a tapping run on the HTS for the current config: switch to the Tapping
+        /// scene, Initialize, Begin. Returns true if the run started; false on any failure
+        /// (reason logged, run button re-enabled). Does NOT wait for the run to finish —
+        /// completion still arrives via the Finished push message.
+        /// </summary>
+        private async Task<bool> StartTappingRunAsync(string arguments = "")
+        {
             runButton.Enabled = false;
             dataPathTextBox.Text = "";
             logTextBox.Clear();
-            //logTextBox.Text = "";
             _runStarted = false;
             _endRunStarted = false;
 
-            //if (_currentHtsScene != "Tapping")
+            var success = await ChangeRemoteScene("Tapping");
+            if (!success)
             {
-                var success = await ChangeRemoteScene("Tapping");
-                if (!success)
-                {
-                    logTextBox.Text = "ERROR: Failed to change scene to Tapping on tablet.";
-                    Log.Warning("Failed to change scene to Tapping on tablet.");
-                    runButton.Enabled = true;
-                    return;
-                }
+                logTextBox.Text = "ERROR: Failed to change scene to Tapping on tablet.";
+                Log.Warning("Failed to change scene to Tapping on tablet.");
+                runButton.Enabled = true;
+                return false;
             }
 
             var payload = new TappingConfigPayload
             {
                 Configuration = _currentConfig,
-                Arguments = ""
+                Arguments = arguments
             };
+
             var result = _network.SendXmlRequest<string>("Initialize", payload);
             _dataPath = result ?? "";
-
-            if (string.IsNullOrEmpty(_dataPath))
+            if (string.IsNullOrEmpty(_dataPath) || _dataPath.StartsWith("error"))
             {
                 logTextBox.Text = "ERROR: Failed to initialize Tapping scene on tablet.";
                 Log.Warning("Failed to initialize Tapping scene on tablet.");
+
+                if (_dataPath.StartsWith("error"))
+                {
+                    logTextBox.AppendText(Environment.NewLine + _dataPath);
+                    Log.Warning($"Tablet error: {_dataPath}");
+                }
+
                 runButton.Enabled = true;
-                return;
+                return false;
             }
 
             dataPathTextBox.Text = Path.GetFileName(_dataPath);
@@ -581,6 +602,7 @@ namespace TapDevPlatform
             logTextBox.AppendText("OK" + Environment.NewLine);
             _network.SendMessage("Begin");
             _runStarted = true;
+            return true;
         }
 
         private void StopButton_Click(object sender, EventArgs e)
@@ -651,39 +673,6 @@ namespace TapDevPlatform
             Log.Information($"Running MATLAB function '{matlabFunction}' on file '{wavFilePath}'");
             string result = MATLAB.RunFunction(matlabFunction, wavFilePath);
             logTextBox.AppendText($"MATLAB analysis result:{Environment.NewLine}{result}{Environment.NewLine}");
-        }
-
-        private async void testApiButton_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                string key = CredentialStore.Load(ApiKeyProvisioning.Target);
-                if (string.IsNullOrEmpty(key))
-                {
-                    logTextBox.Text = "No API key stored. Run Set API Key… first.";
-                    return;
-                }
-
-                testApiButton.Enabled = false;
-                logTextBox.Text = "Calling…";
-
-                var client = new AnthropicClient(key);            // default model claude-sonnet-5
-                string reply = await client.SendAsync("Reply with exactly: pong");
-                logTextBox.Text = reply;                            // expect: pong
-            }
-            catch (Exception ex)
-            {
-                logTextBox.Text = ex.Message;                       // API error body lands here verbatim
-            }
-            finally
-            {
-                testApiButton.Enabled = true;
-            }
-        }
-
-        private void setKeyButton_Click(object sender, EventArgs e)
-        {
-            ApiKeyProvisioning.PromptAndStore(this);
         }
     }
 }

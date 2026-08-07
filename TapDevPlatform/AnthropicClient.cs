@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -8,19 +10,20 @@ using System.Threading.Tasks;
 namespace TDP.Api   // rename to match your project
 {
     /// <summary>
-    /// Minimal Anthropic Messages API client for substage 1: one user message in,
-    /// plain text out. No conversation history, no system prompt, no marker parsing —
-    /// this exists only to prove auth, the request shape, and response parsing in
-    /// isolation. Substage 2 adds the message-history object and the system prompt.
+    /// Anthropic Messages API client. Pure transport: it serialises a request,
+    /// posts it, and returns the concatenated text of the reply. It holds NO
+    /// conversation state — every call sends everything it is given. History lives
+    /// in <see cref="ConversationManager"/>; marker parsing lives in
+    /// <see cref="MarkerDispatcher"/>. Keeping those out of here is deliberate.
     ///
     /// Request shape (verified against docs.claude.com):
     ///   POST https://api.anthropic.com/v1/messages
     ///   headers: x-api-key, anthropic-version: 2023-06-01, content-type: application/json
-    ///   body:    { model, max_tokens, messages: [ { role, content } ] }
+    ///   body:    { model, max_tokens, [system], messages: [ { role, content }, ... ] }
     ///   reply:   { content: [ { type: "text", text: "..." }, ... ], usage: {...}, ... }
     ///
-    /// The system prompt (added in substage 2) is a TOP-LEVEL "system" field on the
-    /// body, never a message with role "system" — that returns 400.
+    /// The system prompt is a TOP-LEVEL "system" field on the body, never a message
+    /// with role "system" — that returns 400.
     /// </summary>
     public sealed class AnthropicClient
     {
@@ -34,8 +37,9 @@ namespace TDP.Api   // rename to match your project
         private readonly string _model;
 
         /// <param name="model">
-        /// Confirm the exact current string against the models page. For a bare
-        /// round-trip the model barely matters; any current model proves the seam.
+        /// Confirm the exact current string against the models page. Sonnet is the
+        /// default for the rapid loop; escalate to an Opus model for harder new-rule
+        /// requests. Keep this a config value so switching is trivial.
         /// </param>
         public AnthropicClient(string apiKey, string model = "claude-sonnet-5")
         {
@@ -44,23 +48,65 @@ namespace TDP.Api   // rename to match your project
         }
 
         /// <summary>
-        /// Sends a single user message and returns the concatenated text of the reply.
-        /// Throws on transport failure or a non-success API response, with the API's
-        /// own error body in the exception message (invaluable while proving the seam).
+        /// Substage-1 isolation harness: one user message in, plain text out. No
+        /// system prompt, no history. Still handy as a bare connectivity ping.
         /// </summary>
-        public async Task<string> SendAsync(string userText, int maxTokens = 1024, CancellationToken ct = default)
+        public Task<string> SendAsync(string userText, int maxTokens = 1024, CancellationToken ct = default)
         {
-            var body = new
+            var payload = new Dictionary<string, object>
             {
-                model = _model,
-                max_tokens = maxTokens,
-                messages = new[]
-                {
-                    new { role = "user", content = userText }
-                }
+                ["model"] = _model,
+                ["max_tokens"] = maxTokens,
+                ["messages"] = new[] { new { role = "user", content = userText } }
+            };
+            return PostAsync(payload, ct);
+        }
+
+        /// <summary>
+        /// Substage-2 conversation send: a system prompt plus the full message
+        /// history. The caller (ConversationManager) owns and re-sends the history;
+        /// this method is stateless. Returns the concatenated assistant text.
+        /// </summary>
+        /// <param name="system">
+        /// The system prompt (Contract + project-head instructions). Omitted from the
+        /// body when null/empty. A plain string here; the cache_control block form is
+        /// a 4d concern.
+        /// </param>
+        /// <param name="messages">Full conversation so far, in order, ending on a user turn.</param>
+        public Task<string> SendAsync(
+            string system,
+            IReadOnlyList<ChatMessage> messages,
+            int maxTokens = 4096,
+            CancellationToken ct = default)
+        {
+            if (messages == null) throw new ArgumentNullException(nameof(messages));
+
+            var payload = new Dictionary<string, object>
+            {
+                ["model"] = _model,
+                ["max_tokens"] = maxTokens,
+                ["messages"] = messages
+                    .Select(m => new { role = m.Role, content = m.Content })
+                    .ToArray()
             };
 
-            string json = JsonSerializer.Serialize(body);
+            // Conditional inclusion is why the body is a Dictionary rather than an
+            // anonymous type: send "system" only when there is one.
+            if (!string.IsNullOrEmpty(system))
+                payload["system"] = system;
+
+            return PostAsync(payload, ct);
+        }
+
+        /// <summary>
+        /// Serialises the body, posts it, and returns the reply text. Throws on
+        /// transport failure or a non-success API response, with the API's own error
+        /// body in the message (invaluable while proving a seam). Echoes the RESPONSE
+        /// body only, never the request, so the key cannot leak into a debug box.
+        /// </summary>
+        private async Task<string> PostAsync(IDictionary<string, object> payload, CancellationToken ct)
+        {
+            string json = JsonSerializer.Serialize(payload);
 
             using var req = new HttpRequestMessage(HttpMethod.Post, Endpoint);
             req.Headers.Add("x-api-key", _apiKey);            // custom header — not validated, will not throw
@@ -72,8 +118,6 @@ namespace TDP.Api   // rename to match your project
 
             if (!resp.IsSuccessStatusCode)
             {
-                // Note: this echoes the RESPONSE body, never the request, so the key
-                // cannot leak into your debug box.
                 throw new HttpRequestException(
                     $"Anthropic API returned {(int)resp.StatusCode} {resp.StatusCode}:\n{responseJson}");
             }
@@ -82,8 +126,8 @@ namespace TDP.Api   // rename to match your project
         }
 
         /// <summary>
-        /// Concatenates the text of every "text" block in the response's content array,
-        /// ignoring any non-text block types.
+        /// Concatenates the text of every "text" block in the response's content
+        /// array, ignoring any non-text block types.
         /// </summary>
         private static string ExtractText(string responseJson)
         {

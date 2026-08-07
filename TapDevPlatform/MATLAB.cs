@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,6 +10,7 @@ using MathWorks.MATLAB.Engine;
 using MathWorks.MATLAB.Types;
 
 using Serilog;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TapDevPlatform
 {
@@ -68,6 +71,32 @@ namespace TapDevPlatform
                 }
             }
             return result;
+        }
+
+        public static void RunGenerator(string mPath)
+        {
+            var folder = Path.GetDirectoryName(mPath);
+            var file = Path.GetFileNameWithoutExtension(mPath);
+
+            _engine.cd(folder);
+
+            var runOpts = new RunOptions() { Nargout = 0 };
+            _engine.eval(runOpts, file);
+        }
+
+        public static (bool ok, string report) ValidateTrialList(string jsonPath)
+        {
+            dynamic data = _engine.eval($"tapping.validateTrialList('{jsonPath}')");
+
+            if (!(data is MATLABStruct))
+            {
+                return (false, "Invalid data returned from MATLAB function");
+            }
+
+            bool ok = data.GetField("ok");
+            string report = data.GetField("errors");
+
+            return (ok, report);
         }
 
     }
