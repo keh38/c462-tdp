@@ -445,7 +445,7 @@ namespace TapDevPlatform
 
         private void elementsHelpButton_Click(object sender, EventArgs e)
         {
-
+            MarkdownDialog.ShowMarkdownDialog(FileLocations.ElementsTabHelp);
         }
 
         private void LoadConfigFile(string name)
@@ -689,6 +689,11 @@ namespace TapDevPlatform
             Log.Information($"Running MATLAB function '{matlabFunction}' on file '{wavFilePath}'");
             string result = MATLAB.RunFunction(matlabFunction, wavFilePath);
             logTextBox.AppendText($"MATLAB analysis result:{Environment.NewLine}{result}{Environment.NewLine}");
+        }
+
+        private void patternsHelpButton_Click(object sender, EventArgs e)
+        {
+            MarkdownDialog.ShowMarkdownDialog(FileLocations.PatternsTabHelp);
         }
     }
 }

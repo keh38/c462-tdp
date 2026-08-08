@@ -18,11 +18,12 @@ namespace HTSController
             InitializeComponent();
         }
 
-        public static void ShowMarkdownDialog(string markdownContent)
+        public static void ShowMarkdownDialog(string markdownPath)
         {
             var dialog = new MarkdownDialog();
 
             // Convert the markdown to HTML
+            string markdownContent = System.IO.File.ReadAllText(markdownPath);
             string html = MarkdownHelper.ConvertMarkdownToHtml(markdownContent);
 
             dialog.webBrowser.DocumentText = html;

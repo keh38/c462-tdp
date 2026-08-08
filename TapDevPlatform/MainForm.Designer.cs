@@ -53,6 +53,7 @@
             inputTextBox = new TextBox();
             transcriptRichTextBox = new RichTextBox();
             elementsPage = new TabPage();
+            elementsHelpButton = new Button();
             errorTextBox = new TextBox();
             NewButton = new Button();
             DeleteButton = new Button();
@@ -61,7 +62,7 @@
             configFileDropDown = new ComboBox();
             propertyGrid = new PropertyGrid();
             imageList = new ImageList(components);
-            elementsHelpButton = new Button();
+            patternsHelpButton = new Button();
             statusStrip.SuspendLayout();
             tabControl.SuspendLayout();
             patternsPage.SuspendLayout();
@@ -121,6 +122,7 @@
             // 
             // patternsPage
             // 
+            patternsPage.Controls.Add(patternsHelpButton);
             patternsPage.Controls.Add(previewButton);
             patternsPage.Controls.Add(chatListView);
             patternsPage.Controls.Add(sendButton);
@@ -306,6 +308,17 @@
             elementsPage.TabIndex = 0;
             elementsPage.Text = "Elements";
             // 
+            // elementsHelpButton
+            // 
+            elementsHelpButton.Location = new Point(1054, 15);
+            elementsHelpButton.Margin = new Padding(3, 4, 3, 4);
+            elementsHelpButton.Name = "elementsHelpButton";
+            elementsHelpButton.Size = new Size(67, 31);
+            elementsHelpButton.TabIndex = 5;
+            elementsHelpButton.Text = "Help";
+            elementsHelpButton.UseVisualStyleBackColor = true;
+            elementsHelpButton.Click += elementsHelpButton_Click;
+            // 
             // errorTextBox
             // 
             errorTextBox.ForeColor = Color.Firebrick;
@@ -386,16 +399,15 @@
             imageList.Images.SetKeyName(0, "nav_plain_red.png");
             imageList.Images.SetKeyName(1, "nav_plain_green.png");
             // 
-            // elementsHelpButton
+            // patternsHelpButton
             // 
-            elementsHelpButton.Location = new Point(1054, 15);
-            elementsHelpButton.Margin = new Padding(3, 4, 3, 4);
-            elementsHelpButton.Name = "elementsHelpButton";
-            elementsHelpButton.Size = new Size(67, 31);
-            elementsHelpButton.TabIndex = 5;
-            elementsHelpButton.Text = "Help";
-            elementsHelpButton.UseVisualStyleBackColor = true;
-            elementsHelpButton.Click += elementsHelpButton_Click;
+            patternsHelpButton.Location = new Point(729, 471);
+            patternsHelpButton.Name = "patternsHelpButton";
+            patternsHelpButton.Size = new Size(96, 29);
+            patternsHelpButton.TabIndex = 19;
+            patternsHelpButton.Text = "Help";
+            patternsHelpButton.UseVisualStyleBackColor = true;
+            patternsHelpButton.Click += patternsHelpButton_Click;
             // 
             // MainForm
             // 
@@ -457,5 +469,6 @@
         private ListView chatListView;
         private Button previewButton;
         private Button elementsHelpButton;
+        private Button patternsHelpButton;
     }
 }

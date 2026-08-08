@@ -17,5 +17,8 @@ namespace TapDevPlatform
         public static string InstructionsPath => Path.Combine(TdpFolder, "Context", "Tapping_ProjectHead_AI_Instructions.md");
         public static string GeneratorFolder => Path.Combine(TdpFolder, "Output");
         public static string CurrentTry => Path.Combine(GeneratorFolder, "Tapping.CurrentTry.json");
+
+        public static string ElementsTabHelp => Path.Combine(TdpFolder, "Help", "ElementsTabHelp.md");
+        public static string PatternsTabHelp => Path.Combine(TdpFolder, "Help", "PatternsTabHelp.md");
     }
 }
