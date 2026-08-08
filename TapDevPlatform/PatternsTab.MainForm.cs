@@ -1,8 +1,11 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+using Tapping;
 
 using TDP.Api;        // AnthropicClient, ConversationManager, MarkerDispatcher, DispatchedReply, ReplyKind
 using TDP.Security;   // CredentialStore  (ApiKeyProvisioning is in the global namespace)
@@ -86,6 +89,7 @@ namespace TapDevPlatform
 
             _client = new AnthropicClient(key /*, model */);
             _conversation = new ConversationManager(_client, BuildSystemPrompt());
+            SeedSessionContext();          // <-- inject the ProfileTarget context as the opening turns
             return true;
         }
 
@@ -102,6 +106,55 @@ namespace TapDevPlatform
             string instructions = File.ReadAllText(FileLocations.InstructionsPath);
             return contract + "\n\n" + instructions;
         }
+
+        private const string ProfileContextMarker = "[SESSION PROFILE TARGETS]";
+        private const string ProfileContextAck =
+            "Understood — I'll use these parameters, refer to them by short name, and put the " +
+            "exact Item path in any ParameterProfile. I won't add a profile unless asked.";
+
+        /// <summary>
+        /// Seeds a freshly-built conversation with the session's profile-target context: one
+        /// user turn declaring the available parameters, plus a short assistant acknowledgment
+        /// so the turns alternate (some API surfaces reject two user turns in a row). Persisted
+        /// with the session; rendered tersely. Runs once per conversation birth. On load,
+        /// LoadHistory overwrites these with the saved turns (which carry their own context
+        /// pair), so there is no duplication.
+        /// </summary>
+        private void SeedSessionContext()
+        {
+            string body = BuildProfileTargetContext(_currentConfig.ProfileTargets);   // your List<ProfileTarget>
+            _conversation.LoadHistory(new[]
+            {
+                ChatMessage.User(ProfileContextMarker + "\n" + body),
+                ChatMessage.Assistant(ProfileContextAck)
+            });
+            AppendTranscript("—", "session parameters loaded", NoteColor, boldLabel: false);
+        }
+
+        /// <summary>
+        /// Formats the profile targets into the context body. The empty case is stated
+        /// explicitly — silence is ambiguous (failed to load, or genuinely none?), and an
+        /// explicit "none" reinforces the contract's "a profile is never required" and
+        /// "do not guess an Item" rules.
+        /// </summary>
+        private static string BuildProfileTargetContext(IReadOnlyList<ProfileTarget> targets)
+        {
+            if (targets == null || targets.Count == 0)
+                return "No stimulus parameters are exposed for profiling this session. " +
+                       "Do not produce any ParameterProfiles.";
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Stimulus parameters available to vary in a ParameterProfile this session.");
+            sb.AppendLine("Refer to each by its short name; put the exact Item path in ParameterProfile.Item:");
+            foreach (var t in targets)
+                sb.AppendLine($"  \u2022 {t.ShortName} \u2192 {t.Item}");
+            sb.Append("A profile is optional; omit ParameterProfiles entirely if none is wanted.");
+            return sb.ToString();
+        }
+
+        private static bool IsSessionContext(ChatMessage m)
+            => m.Role == "user" && m.Content != null
+               && m.Content.StartsWith(ProfileContextMarker, StringComparison.Ordinal);
 
         // ----- send: button and Enter --------------------------------------------
 
@@ -161,10 +214,10 @@ namespace TapDevPlatform
             {
                 // ConversationManager appends the user turn, sends the whole history,
                 // and stores the RAW reply (marker line and all) before we ever parse.
-                string reply = await _conversation.SendAsync(userText);
-
+                string reply = await _conversation.SendAsync(ComposeOutgoingMessage(userText));
                 DispatchedReply dispatched = MarkerDispatcher.Parse(reply);
                 HandleReply(dispatched);
+                Autosave();   // persist the turn -> session appears/updates in the chat list
             }
             catch (Exception ex)
             {
@@ -255,7 +308,8 @@ namespace TapDevPlatform
             // Generate is available only when idle AND a generator is pending.
             generateButton.Enabled = !busy && _pendingGeneratorCode != null;
 
-            sendButton.Text = busy ? "\u2026" : "Send";
+//            sendButton.Text = busy ? "\u2026" : "Send";
+            sendButton.Text = busy ? "Thinking..." : "Send";
             UseWaitCursor = busy;
         }
 

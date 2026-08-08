@@ -116,7 +116,7 @@ namespace TapDevPlatform
 
                 // --- success ---
                 AppendTranscript("Note", $"Validated OK (attempt {attempt}).", NoteColor, boldLabel: false);
-                await DeliverValidatedListAsync(jsonPath);
+                await DeliverValidatedListAsync(jsonPath, code);
                 return;
             }
         }
@@ -192,16 +192,6 @@ namespace TapDevPlatform
         {
             (bool ok, string report) = await Task.Run(() => MATLAB.ValidateTrialList(jsonPath));
             return new ValidationResult(ok, report);
-        }
-
-        /// <summary>
-        /// Success path: populate trialsDataGridView from the validated list, then
-        /// TransferFile the JSON to the HTS, ensure the tapping scene, and Initialize/
-        /// Begin — the stage-2 playback path you already proved.
-        /// </summary>
-        private async Task DeliverValidatedListAsync(string jsonPath)
-        {
-            await StartTappingRunAsync(File.ReadAllText(jsonPath));
         }
 
         private sealed class ValidationResult

@@ -70,6 +70,35 @@ distractor drift in phase against the pacer. That is a design choice, not an
 error, so the validator does not flag it; the **preview** is where you see
 whether a loop does what you meant (see §4).
 
+### The repeating unit is recorded (`PacerPattern`, `DistractorPattern`)
+
+Tiling is lossy. When a stream is built by drawing a short **unit** — say four
+intervals — and repeating it to fill the pacer, what lands in `PacerIntervals`
+is the flattened result; the unit's length (and, for a *drawn* unit, its values)
+cannot be recovered from the flattened vector afterward. Because analysis often
+needs the period a stream was built from, each stream records its pre-tile
+**unit** alongside its flattened intervals:
+
+- `PacerPattern` — the repeating unit `PacerIntervals` was tiled from.
+- `DistractorPattern` — the same, for the distractor.
+
+**Empty means the stream does not repeat.** A stream authored as literal
+intervals with no repeat leaves its pattern field empty, and its period is simply
+the full interval count. An empty pattern is therefore not missing information —
+it is the explicit statement "no shorter repeating unit," whose length is
+`numel(...Intervals)`. This is *authored intent captured at tiling time*: it is
+not derivable after the fact, which is exactly why it is recorded and not
+computed.
+
+The pattern is the **unit you drew, not the sequence you produced** — never set
+it by copying or re-measuring the flattened intervals. In the library this is
+automatic: `tapping.tilePattern` returns the flattened intervals and the unit
+*together* (§3), and `tapping.newTrial` defaults both pattern fields to empty, so
+a stream that is never tiled stays correctly non-repeating with no decision
+anywhere. A non-dividing unit is legal for the same reason a non-dividing loop
+is: it tiles and truncates at the stream's end, drifting in phase — the drift the
+preview surfaces (§4).
+
 ### Parameter profiles
 
 A **ParameterProfile** varies one stimulus parameter across elements — the
@@ -111,7 +140,9 @@ ignores unknown fields, so it is safe to include and is written automatically.
 | `LeadIn` | number | ms | ≥ 0. Pacer-alone stretch before the distractor enters. Applies to the distractor only. |
 | `Offset` | number | ms | Distractor phase. `LeadIn + Offset` must be ≥ 0 (the distractor cannot start before t = 0). Applies to the distractor only. |
 | `PacerIntervals` | number[] | ms | **Non-empty.** Every value finite and > 0. Length is **authoritative** — it defines the trial. |
+| `PacerPattern` | number[] | ms | **May be empty.** Empty = the pacer does not repeat (its period is the `PacerIntervals` length). If present, it is the repeating **unit** `PacerIntervals` was tiled from; every value finite and > 0. Set only by tiling — it is *never* a copy or re-measurement of the flattened `PacerIntervals`. |
 | `DistractorIntervals` | number[] | ms | May be empty (a pacer-only trial). If present, every value finite and > 0. Loops over the pacer; length is free. |
+| `DistractorPattern` | number[] | ms | **May be empty.** Empty when the distractor is *absent*, or present but *non-repeating*. If present, the repeating **unit** `DistractorIntervals` was tiled from; every value finite and > 0. "Absent" vs "present, non-repeating" is told by `DistractorIntervals`, not by this field. |
 | `ParameterProfiles` | ParameterProfile[] | — | May be empty. Each profile varies one parameter across elements. |
 
 ### ParameterProfile
@@ -128,9 +159,13 @@ ignores unknown fields, so it is safe to include and is written automatically.
 - **Every array field must be a JSON array**, even at length 1: `[500]`, not
   `500`. `writeTrialList` guarantees this; a hand-edited file must preserve the
   brackets. (A collapsed scalar fails loudly in the HTS loader, so it will not
-  pass silently — but do not rely on that.)
+  pass silently — but do not rely on that.) This includes the pattern fields: an
+  empty pattern is the empty array `[]`, and it must survive the wire as `[]`
+  (not omitted, not `null`) — the empty-means-non-repeating convention rides on
+  that.
 - **Units are milliseconds** for every interval field (LeadIn, Offset, Pacer,
-  Distractor). Profile `Values` use the parameter's own units.
+  Distractor, and both Pattern fields). Profile `Values` use the parameter's own
+  units.
 - **Filename is `Tapping.<name>.json`** — capital-T `Tapping.` prefix. This is
   the HTS config-file naming contract; it is deliberately *not* the same as the
   lowercase `+tapping` MATLAB package name. Do not lowercase it.
@@ -161,11 +196,19 @@ functions as `tapping.<name>(...)`.
   their cumulative duration exceeds `targetMs`. The count is an output.
 - `tapping.drawSumConstrained(set, n, targetSum, exclude)` — draw `n` values
   summing exactly to `targetSum`, optionally ≠ `exclude`.
+- `tapping.tilePattern(unit, targetCount)` — tile a **pre-drawn** `unit` to
+  `targetCount` elements, returning **both** the flattened intervals and the
+  unit: `[iv, pat] = tapping.tilePattern(unit, n)`. Assign them as a pair
+  (`[t.PacerIntervals, t.PacerPattern] = tapping.tilePattern(unit, nPacer)`) so
+  the pattern field can never be forgotten. Non-dividing tiling is legal — it
+  truncates at `targetCount`, drifting in phase. This is the **only** thing that
+  sets a pattern field non-empty.
 
 ### Trial construction
 
 - `tapping.newTrial()` — a blank trial struct with every field defaulted
-  (mirrors the C# constructor).
+  (mirrors the C# constructor). Both pattern fields default to empty; that
+  default *is* the non-repeating sentinel.
 - `tapping.makeProfile(item, values)` — one ParameterProfile. For no parameter profile, 
   assign an empty array — `t.ParameterProfiles = []` — never tapping.makeProfile.empty 
   or any other form.
@@ -180,7 +223,13 @@ functions as `tapping.<name>(...)`.
   file. Returns `report.ok` and prints every issue.
 - `tapping.previewList(src)` — run-scale table, one row per trial (order,
   A/B balance, durations).
-- `tapping.previewTrial(trial)` — per-trial view (onset times, jitter, profiles).
+- `tapping.previewTrial(trial)` — per-trial view (onset times, jitter, profiles,
+  and each stream's repeating unit with its repeat/remainder against the stream).
+- `tapping.patternLength(pattern, intervals)` — the period of a stream under the
+  empty-means-non-repeating convention: `numel(pattern)` if present, else
+  `numel(intervals)`. **Analysis must call this**, not `numel(pattern)` directly
+  (which returns 0 for a non-repeating stream and misreads it as length zero).
+  This is the one place the empty→full rule lives.
 
 ### Authoring principles
 
@@ -190,9 +239,12 @@ sampling, encoding, or file writing that the library already provides.
 
 **Rules go in the library; wiring goes in the generator.** The library holds
 primitives that *produce or transform a vector*. Relationships *between fields* —
-tiling a pattern, balancing A/B across trials, setting the distractor equal to
-the pacer (`t.DistractorIntervals = pacerIv`), choosing run order — are
-composition, and live in the generator.
+choosing a stream's repeating unit and tiling it to length (via
+`tapping.tilePattern`), balancing A/B across trials, setting the distractor equal
+to the pacer (`t.DistractorIntervals = pacerIv`), choosing run order — are
+composition, and live in the generator. The mechanical tiling is a primitive;
+what stays in the generator is *choosing* the unit and the target length and
+assigning the returned pair.
 
 **A new need is a new function, not a bent old one.** When an experiment needs
 something the primitives do not express, write a *new, clearly-named* rule
@@ -212,6 +264,16 @@ review.
 draw, and pass the same `seed` to `writeTrialList`. The generator plus its seed
 *is* the reproducible record — the JSON is one draw from it.
 
+**Record the unit you drew, not the sequence you produced.** When a stream is
+drawn-and-tiled, capture its repeating unit with `tapping.tilePattern`, which
+returns the flattened intervals and the unit together — assign both. When a
+stream is authored as literal intervals with no repeat, leave its pattern field
+empty (`newTrial` already defaults it so). **Never** set a pattern by copying or
+re-measuring the flattened intervals: the pattern is the *unit*, and after tiling
+the unit's length is unrecoverable from the flattened vector. This mirrors the
+seed discipline — the number that defines the structure is recorded by the step
+that knows it, at the moment it knows it.
+
 ---
 
 ## 4. Two kinds of checking
@@ -220,16 +282,21 @@ Two instruments answer two different questions. Keep them distinct.
 
 **`validateTrialList` — is the file well-formed?** A binary gate. It checks the
 structural and sanity invariants: pacer present and positive, no NaN/Inf, enums
-legal, LeadIn ≥ 0, and so on. It catches *malformed*. It deliberately does **not**
-judge whether the experiment is the one you intended — a well-formed file that
-implements the wrong idea passes. Run it on every file before the HTS sees it.
+legal, LeadIn ≥ 0, and so on. A non-empty pattern is checked like any interval
+vector (finite, > 0); an empty pattern is always legal — it *is* the
+non-repeating case. The gate deliberately does **not** judge whether the
+experiment is the one you intended — a well-formed file that implements the wrong
+idea passes, and in particular it does not judge whether a unit tiles the way you
+meant. Run it on every file before the HTS sees it.
 
 **The previews — is it the experiment you meant?** Human judgment. `previewList`
 shows the run's composition (order, balance, durations); `previewTrial` shows one
-trial's structure (onset times, jitter, phase, profiles). This is where
-valid-but-wrong is caught — a looping distractor that drifts, an A/B imbalance, a
-frequency ramp that isn't what you pictured. Nothing is malformed, so only a
-human looking can catch it.
+trial's structure (onset times, jitter, phase, profiles) — and, for a tiled
+stream, the repeating unit with its repeat count and remainder against the
+stream, flagging a non-dividing drift. This is where valid-but-wrong is caught —
+a looping distractor that drifts, an A/B imbalance, a frequency ramp that isn't
+what you pictured, a pattern unit that doesn't tile as intended. Nothing is
+malformed, so only a human looking can catch it.
 
 Neither is ground truth. Both model the HTS's *reading* of the file. The only
 ground truth for timing is the recorded WAV and its loopback fiducial.

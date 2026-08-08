@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="C462.HTS" Version="1.6.0" />
-    <PackageReference Include="C462.Shared" Version="1.28.0" />
+    <PackageReference Include="C462.HTS" Version="1.7.2" />
+    <PackageReference Include="C462.Shared" Version="1.29.0" />
     <PackageReference Include="KLib" Version="1.8.1" />
     <PackageReference Include="KLib.Controls" Version="1.8.0" />
     <PackageReference Include="KLib.Net" Version="2.6.0" />

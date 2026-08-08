@@ -7,6 +7,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Serilog;
+
 namespace TDP.Api   // rename to match your project
 {
     /// <summary>
@@ -93,8 +95,17 @@ namespace TDP.Api   // rename to match your project
             // Conditional inclusion is why the body is a Dictionary rather than an
             // anonymous type: send "system" only when there is one.
             if (!string.IsNullOrEmpty(system))
-                payload["system"] = system;
-
+            {
+                payload["system"] = new object[]
+                {
+                    new
+                    {
+                        type = "text",
+                        text = system,
+                        cache_control = new { type = "ephemeral" }
+                    }
+                };
+            }
             return PostAsync(payload, ct);
         }
 
@@ -129,11 +140,49 @@ namespace TDP.Api   // rename to match your project
         /// Concatenates the text of every "text" block in the response's content
         /// array, ignoring any non-text block types.
         /// </summary>
+        //private static string ExtractText(string responseJson)
+        //{
+        //    using JsonDocument doc = JsonDocument.Parse(responseJson);
+
+        //    if (!doc.RootElement.TryGetProperty("content", out JsonElement content)
+        //        || content.ValueKind != JsonValueKind.Array)
+        //    {
+        //        return "(no content array in response)\n" + responseJson;
+        //    }
+
+        //    var sb = new StringBuilder();
+        //    foreach (JsonElement block in content.EnumerateArray())
+        //    {
+        //        if (block.TryGetProperty("type", out JsonElement type)
+        //            && type.GetString() == "text"
+        //            && block.TryGetProperty("text", out JsonElement text))
+        //        {
+        //            sb.Append(text.GetString());
+        //        }
+        //    }
+
+        //    return sb.Length > 0 ? sb.ToString() : "(no text blocks in response)\n" + responseJson;
+        //}
         private static string ExtractText(string responseJson)
         {
             using JsonDocument doc = JsonDocument.Parse(responseJson);
+            JsonElement root = doc.RootElement;
 
-            if (!doc.RootElement.TryGetProperty("content", out JsonElement content)
+            // --- cache diagnostics: read usage if present ---
+            if (root.TryGetProperty("usage", out JsonElement usage))
+            {
+                long input = GetLong(usage, "input_tokens");
+                long output = GetLong(usage, "output_tokens");
+                long created = GetLong(usage, "cache_creation_input_tokens");
+                long read = GetLong(usage, "cache_read_input_tokens");
+
+                Log.Information(
+                    "Anthropic usage — input:{Input} output:{Output} cacheWrite:{Write} cacheRead:{Read}",
+                    input, output, created, read);
+            }
+
+            // --- text extraction (unchanged) ---
+            if (!root.TryGetProperty("content", out JsonElement content)
                 || content.ValueKind != JsonValueKind.Array)
             {
                 return "(no content array in response)\n" + responseJson;
@@ -152,5 +201,11 @@ namespace TDP.Api   // rename to match your project
 
             return sb.Length > 0 ? sb.ToString() : "(no text blocks in response)\n" + responseJson;
         }
+
+        // Reads a numeric property, returning 0 if absent or not a number.
+        private static long GetLong(JsonElement obj, string name)
+            => obj.TryGetProperty(name, out JsonElement v) && v.ValueKind == JsonValueKind.Number
+                ? v.GetInt64()
+                : 0;
     }
 }

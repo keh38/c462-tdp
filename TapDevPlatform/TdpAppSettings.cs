@@ -13,6 +13,7 @@ namespace TapDevPlatform
         public Rectangle lastPosition = new Rectangle();
         public string lastConfigFile = "";
         public string lastMatlabFile = "";
+        public string lastProjectSubject = "";
 
         private static TdpAppSettings _instance = null;
         private static TdpAppSettings instance
@@ -50,6 +51,12 @@ namespace TapDevPlatform
         {
             get { return instance.lastMatlabFile; }
             set { instance.lastMatlabFile = value; Save(); }
+        }
+
+        public static string LastProjectSubject
+        {
+            get { return !string.IsNullOrEmpty(instance.lastProjectSubject) ? instance.lastProjectSubject : "Scratch/_anonymous"; }
+            set { instance.lastProjectSubject = value; Save(); }
         }
 
         private static void Save()

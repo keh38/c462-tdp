@@ -99,5 +99,10 @@ namespace TapDevPlatform
             return (ok, report);
         }
 
+        public static void PreviewTrialList(string jsonPath)
+        {
+            var runOpts = new RunOptions() { Nargout = 0 };
+            _engine.eval(runOpts, $"tapping.previewTrialList('{jsonPath}')");
+        }
     }
 }

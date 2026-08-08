@@ -52,6 +52,7 @@ namespace TapDevPlatform
             stopButton.Enabled = false;
 
             InitializePatternsTab();
+            InitializeMasterList();
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -61,6 +62,8 @@ namespace TapDevPlatform
 
             InitSignalGraph();
             EnumerateMATLABFunctions();
+
+            UpdateProjectAndSubject(TdpAppSettings.LastProjectSubject);
         }
 
         private async void MainForm_Shown(object sender, EventArgs e)
@@ -314,6 +317,9 @@ namespace TapDevPlatform
                 Log.Warning($"Invalid project/subject format: {projectSubject}");
                 return;
             }
+
+            TdpAppSettings.LastProjectSubject = projectSubject;
+
             var project = parts[0];
             var subject = parts[1];
             _subjectName = subject;
@@ -327,6 +333,7 @@ namespace TapDevPlatform
             CreateSessionContext();
             EnumerateConfigFiles();
             LoadConfigFile(TdpAppSettings.LastConfigFile);
+            RefreshSessionList();
         }
 
         private void CreateSessionContext()
@@ -436,6 +443,11 @@ namespace TapDevPlatform
 
         }
 
+        private void elementsHelpButton_Click(object sender, EventArgs e)
+        {
+
+        }
+
         private void LoadConfigFile(string name)
         {
             if (string.IsNullOrEmpty(name))
@@ -451,6 +463,7 @@ namespace TapDevPlatform
             if (File.Exists(configPath))
             {
                 _currentConfig = Files.XmlDeserialize<BasicMeasurementConfiguration>(configPath) as TappingConfiguration;
+                _currentConfig.WireOwners();
                 propertyGrid.SelectedObject = _currentConfig;
                 propertyGrid.ExpandAllGridItems();
 
@@ -474,7 +487,12 @@ namespace TapDevPlatform
             {
                 signalGraph.Plot.Clear();
 
-                float T = 0.001f * sigman.GetMaxInterval(1000);
+                float maxWidth = 0;
+                foreach (var channel in sigman.Channels)
+                {
+                    maxWidth = Math.Max(maxWidth, channel.Gate.Active ? channel.Gate.Width_ms : 0);
+                }
+                float T = 0.001f * Math.Max(2 * maxWidth, 100);
                 T = Math.Min(T, 25);
 
                 npts = (int)(_plotSampleRate * T);
@@ -546,10 +564,8 @@ namespace TapDevPlatform
         // -------------------------------------------------------------------------
         // Patterns panel
         // -------------------------------------------------------------------------
-        private async void RunButton_Click(object sender, EventArgs e)
-        {
-            await StartTappingRunAsync();
-        }
+        private async void RunButton_Click(object sender, EventArgs e) => await ReplaySelectedAsync();
+        private async void PreviewButton_Click(object sender, EventArgs e) => await PreviewSelectedAsync();
 
         /// <summary>
         /// Starts a tapping run on the HTS for the current config: switch to the Tapping
