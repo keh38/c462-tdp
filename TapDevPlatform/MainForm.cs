@@ -685,7 +685,7 @@ namespace TapDevPlatform
             string matlabFunction = TdpAppSettings.LastMatlabFile;
             logTextBox.AppendText($"Running MATLAB function '{matlabFunction}'..." + Environment.NewLine);
 
-            string wavFilePath = Path.Combine(SharedFileLocations.HtsSubjectDataFolder, Path.GetFileNameWithoutExtension(_dataPath) + "-Trial001.wav");
+            string wavFilePath = Path.Combine(SharedFileLocations.HtsSubjectDataFolder, Path.GetFileNameWithoutExtension(_dataPath) + "-Trial001.json");
             Log.Information($"Running MATLAB function '{matlabFunction}' on file '{wavFilePath}'");
             string result = MATLAB.RunFunction(matlabFunction, wavFilePath);
             logTextBox.AppendText($"MATLAB analysis result:{Environment.NewLine}{result}{Environment.NewLine}");

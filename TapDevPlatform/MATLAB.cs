@@ -26,7 +26,7 @@ namespace TapDevPlatform
             try
             {
                 _engine = await MATLABEngine.StartMATLABAsync();
-                _engine.addpath(_engine.genpath(FileLocations.MatlabAnalysisFolder));
+                _engine.addpath(_engine.genpath(FileLocations.MatlabFolder));
                 IsInitialized = true;
             }
             catch (Exception ex)
