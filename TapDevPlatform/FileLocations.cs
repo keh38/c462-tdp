@@ -13,6 +13,7 @@ namespace TapDevPlatform
         public static string TdpFolder => Path.Combine(SharedFileLocations.EplFolder, "TDP");
         public static string SettingsFile => Path.Combine(TdpFolder, "TdpAppSettings.xml");
         public static string MatlabFolder => Path.Combine(TdpFolder, "MATLAB");
+        public static string MatlabAnalysisFolder => Path.Combine(MatlabFolder, "Analysis");
         public static string ContractPath => Path.Combine(TdpFolder, "Context", "Tapping_TrialList_Contract.md");
         public static string InstructionsPath => Path.Combine(TdpFolder, "Context", "Tapping_ProjectHead_AI_Instructions.md");
         public static string GeneratorFolder => Path.Combine(TdpFolder, "Output");

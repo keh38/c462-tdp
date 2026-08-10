@@ -88,7 +88,7 @@ namespace TapDevPlatform
             matlabStatusLabel.Text = "Available";
             if (haveMATLAB)
             {
-                MATLAB.AddPath(FileLocations.MatlabFolder);
+                MATLAB.AddPath(FileLocations.MatlabAnalysisFolder);
             }
         }
 
@@ -193,7 +193,7 @@ namespace TapDevPlatform
 
         private void EnumerateMATLABFunctions()
         {
-            var mFileNames = Directory.GetFiles(FileLocations.MatlabFolder, "*.m", SearchOption.TopDirectoryOnly)
+            var mFileNames = Directory.GetFiles(FileLocations.MatlabAnalysisFolder, "*.m", SearchOption.TopDirectoryOnly)
                 .Select(Path.GetFileNameWithoutExtension)
                 .ToList();
             matlabFunctionDropDown.Items.Clear();

@@ -6,6 +6,7 @@
     <Nullable>disable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+	  <VersionPrefix>1.0</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,5 +50,9 @@
 			<HintPath>C:\Program Files\MATLAB\R2023b\extern\dotnet\netstandard2.0\MathWorks.MATLAB.Types.dll</HintPath>
 		</Reference>
 	</ItemGroup>
+
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<Exec Command="if &quot;$(ConfigurationName)&quot; == &quot;Release&quot; (&quot;C:\Program Files (x86)\Inno Setup 6\Compil32.exe&quot; /cc &quot;$(SolutionDir)\Installer\c462-tdp-installer.iss&quot;)" />
+	</Target>
 
 </Project>
