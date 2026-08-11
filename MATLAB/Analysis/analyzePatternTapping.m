@@ -1,33 +1,36 @@
-function R = analyzePatternTapping(jsonFile)
+function R = analyzePatternTapping(jsonFile, options)
 % ANALYZEPATTERNTAPPING -- folded (pattern-repeat) analysis of a tapping recording
 %
 %   R = analyzePatternTapping(jsonFile)
+%   R = analyzePatternTapping(jsonFile, Window_s=...)
 %
 %  jsonFile is the path to a serialized TappingTrial (see TappingTrial.cs). The
 %  matching TapStreamer recording is the same path with .json -> .wav:
 %     channel 1 = tap sensor
 %     channel 2 = pattern-element onset pulses (1 kHz loopback fiducials)
 %
-%  The trial's PacerPattern field is the sequence of intervals tiled to build
-%  the repeating pacer pattern. Its LENGTH, N, is the number of stimulus
-%  elements per repeat. BOTH event trains are folded the same way, purely by
-%  COUNT: repeat r starts at the (r-1)*N+1-th fiducial pulse, and any event --
-%  pulse or tap -- is placed at its own time minus that repeat's first-pulse
-%  time. There is no tap<->pulse matching: a tap's within-repeat x is
-%  tapTime - repeatStart, exactly as a pulse's is pulseTime - repeatStart.
-%  Reference lines drawn from the interval values mark where the pulses sit
-%  within a repeat; a horizontal line marks the repeat at which the distractor
-%  turns on (LeadIn / sum(PacerPattern) repeats).
+%  The trial's PacerPattern field is the sequence of intervals that is tiled to
+%  build the repeating pacer pattern. Its LENGTH, N, is the number of stimulus
+%  elements per repeat. The fiducial pulse train is wrapped every N pulses -- by
+%  COUNT, not by interval value -- so that time = 0 is the first pulse of each
+%  repeat. Reference lines drawn from the interval values mark where the pulses
+%  sit within a repeat; a horizontal line marks the repeat at which the
+%  distractor turns on (LeadIn / sum(PacerPattern) repeats).
 %
 %  Figure:
 %     bottom    : full waveform, tap and pulse overplotted (both normalized to
-%                 the peak tap amplitude), light vertical onset markers
+%                 the peak tap amplitude), light vertical onset markers, ~half
+%                 the previous height
 %     top-left  : tap-template summary (unchanged)
 %     top-right : folded tap raster, one row per repeat, time increasing upward
+%
+%  Name-Value options:
+%    Window_s - per-pulse match half-width in seconds; 0 => IPI/2 (default 0)
 
 %% ---- 0. Arguments ----------------------------------------------------------
 arguments
     jsonFile {mustBeTextScalar}
+    options.Window_s (1,1) {mustBeNumeric} = 0     % half-width (s); 0 => IPI/2
 end
 jsonFile = char(jsonFile);
 
@@ -59,57 +62,67 @@ tap   = X(:, 1);
 pulse = X(:, 2);
 
 %% ---- 3. Detect event trains (reuse existing analyzers) ---------------------
-pulseTimes = hts.detectAudioPulses(pulse, 'Fs', fs);
+pulseTimes = hts.detectAudioPulses(pulse, 'Fs', fs, 'minInterval', min(trial.PacerPattern));
 pulseTimes = sort(pulseTimes(:));
 
 [tapTime, tapAmplitude, template] = hts.analyzeTaps(tap, fs);
 tapTime = sort(tapTime(:));
 
 nP = numel(pulseTimes);
-if nP < 1
-    error('analyzePatternTapping:pulses', 'No fiducial pulses detected on channel 2.');
+
+%% ---- 4. Assign the nearest tap to each pulse (unchanged logic) -------------
+% Symmetric window centred on the pulse; default half-width = IPI/2 tiles the
+% timeline so each tap belongs to exactly one pulse and anticipatory (negative)
+% asynchronies register naturally. The `used` guard keeps a tap from being
+% claimed twice even if you widen Window_s past IPI/2.
+IPI = median(diff(pulseTimes));
+if isempty(IPI) || ~isfinite(IPI), IPI = 0; end
+
+W = options.Window_s;
+if W <= 0, W = IPI/2; end
+
+latency = nan(nP, 1);
+tapIdx  = nan(nP, 1);
+used    = false(numel(tapTime), 1);
+for i = 1:nP
+    cand = find(tapTime >= pulseTimes(i) - W & ...
+                tapTime <  pulseTimes(i) + W & ~used);
+    if ~isempty(cand)
+        [~, j] = min(abs(tapTime(cand) - pulseTimes(i)));   % nearest, not first
+        sel = cand(j);
+        latency(i) = tapTime(sel) - pulseTimes(i);
+        tapIdx(i)  = sel;
+        used(sel)  = true;
+    end
 end
+responded = ~isnan(latency);
 
-%% ---- 4. Fold BOTH trains by pulse count (no tap<->pulse matching) ----------
-% Repeat r is defined purely by count: it starts at the (r-1)*N+1-th fiducial.
-% Its origin is that pulse's measured time. A pulse or a tap is folded by
-% subtracting the origin of the repeat it falls in -- the same operation for
-% both, so the taps drift relative to the pulses only if they truly do.
-firstPulseIdx   = (1:N:nP).';                     % first-pulse index of each repeat
-cycleStartTimes = pulseTimes(firstPulseIdx);      % nCycles x 1 repeat origins
-nCycles         = numel(cycleStartTimes);
+%% ---- 5. Fold the pulse train into pattern repeats (by count) ---------------
+% Repeat r owns fiducial pulses (r-1)*N+1 .. r*N. time = 0 is that repeat's
+% first pulse. Each responding tap is placed at (tapTime - repeatStart), so a
+% tap anticipating a repeat's first pulse lands as a small negative value in
+% the correct row rather than at the top of the previous row.
+cycleRow   = floor((0:nP-1)'/N) + 1;               % nP x 1, repeat index per pulse
+nCycles    = max([cycleRow; 1]);
+firstIdx   = (cycleRow - 1)*N + 1;                 % first-pulse index of each repeat
+cycleStart = pulseTimes(firstIdx);                 % nP x 1
 
-% pulses, wrapped by their ordinal index
-pulseRepeat = floor((0:nP-1).'/N) + 1;
-pulseWrapX  = pulseTimes - cycleStartTimes(pulseRepeat);
+cycleTapX = nan(nP, 1);
+cycleTapX(responded) = tapTime(tapIdx(responded)) - cycleStart(responded);
 
-% taps, wrapped the same way: time-binned into the repeat that contains them
-edges     = [cycleStartTimes; inf];
-tapRepeat = discretize(tapTime, edges);           % NaN for taps before the 1st pulse
-valid     = ~isnan(tapRepeat);
-tapWrapX  = nan(numel(tapTime), 1);
-tapWrapX(valid) = tapTime(valid) - cycleStartTimes(tapRepeat(valid));
-
-%% ---- 5. Nominal geometry from the interval values -------------------------
-% Within-repeat pulse positions + period, with ms/s auto-detected by matching
-% sum(pattern) to the MEASURED repeat period so reference lines land correctly.
-sumInt        = sum(pacerPattern);
-repeatPeriods = diff(cycleStartTimes);            % measured, one per repeat gap
-if ~isempty(repeatPeriods)
-    measPeriod = median(repeatPeriods);
+% Nominal within-repeat pulse positions come from the interval values. Detect
+% whether the intervals are in ms or s by matching sum(pattern) to the measured
+% repeat period, so the reference lines land correctly regardless of unit and
+% any real drift from the nominal spacing stays visible.
+sumInt = sum(pacerPattern);
+if nP > N
+    measPeriod = median(pulseTimes(1+N:nP) - pulseTimes(1:nP-N));
 elseif nP >= 2
     measPeriod = median(diff(pulseTimes)) * N;
 else
     measPeriod = NaN;
 end
-
-cands = [1, 1e-3];                                % s, ms
-if isfinite(measPeriod) && sumInt > 0
-    [~, ki]   = min(abs(sumInt*cands - measPeriod));
-    unitScale = cands(ki);
-else
-    unitScale = 1e-3;                             % lab convention: intervals in ms
-end
+unitScale = 1e-3;                               % lab convention: intervals in ms
 refPos        = unitScale * [0; cumsum(pacerPattern(1:end-1))];   % N within-repeat positions
 patternPeriod = unitScale * sumInt;
 
@@ -121,37 +134,14 @@ else
     leadCycles = 0;
 end
 
-%% ---- 6. Drift diagnostic ---------------------------------------------------
-% Count-based folding is only valid if every repeat really holds exactly N
-% fiducials. If the repeat period is unstable, or its median doesn't match the
-% nominal period, the fold will diagonal even with perfectly locked tapping --
-% the usual cause being that the fiducials-per-repeat isn't N (extra onsets
-% from another stream, or missed/spurious pulse detections).
-if numel(repeatPeriods) >= 2
-    cvPeriod = std(repeatPeriods) / mean(repeatPeriods);
-else
-    cvPeriod = NaN;
-end
+fprintf(['%d pulses, %d taps, %d responded (%.0f%%). ', ...
+         'Pattern: %d elements/repeat, %d repeats; ', ...
+         'nominal period %.3f s (intervals read as %s), measured %.3f s; ', ...
+         'distractor on at repeat %d.\n'], ...
+    nP, numel(tapTime), nnz(responded), 100*mean(responded), ...
+    N, nCycles, patternPeriod, ternary(unitScale==1e-3, 'ms', 's'), measPeriod, leadCycles+1);
 
-fprintf(['%d pulses (%d repeats x N=%d), %d taps folded. ', ...
-         'Nominal period %.3f s (intervals read as %s); ', ...
-         'measured %.3f s (CV %.1f%%); distractor on at repeat %d.\n'], ...
-    nP, nCycles, N, nnz(valid), patternPeriod, ternary(unitScale==1e-3,'ms','s'), ...
-    measPeriod, 100*cvPeriod, leadCycles+1);
-
-if isfinite(cvPeriod) && cvPeriod > 0.02
-    warning('analyzePatternTapping:periodUnstable', ...
-        ['Repeat period varies (CV = %.1f%%). Count-based wrapping assumes exactly ', ...
-         'N=%d fiducials per repeat -- check for extra or missed pulses.'], 100*cvPeriod, N);
-end
-if isfinite(measPeriod) && patternPeriod > 0 && abs(measPeriod/patternPeriod - 1) > 0.05
-    warning('analyzePatternTapping:periodMismatch', ...
-        ['Measured repeat period (%.3f s) differs from nominal (%.3f s) by %.0f%%. ', ...
-         'The N=%d count likely does not match the fiducials per repeat.'], ...
-        measPeriod, patternPeriod, 100*(measPeriod/patternPeriod - 1), N);
-end
-
-%% ---- 7. Package results ----------------------------------------------------
+%% ---- 6. Package results ----------------------------------------------------
 R = struct();
 R.fs                = fs;
 R.tap               = tap;
@@ -159,23 +149,20 @@ R.pulse             = pulse;
 R.pulseTimes        = pulseTimes;
 R.tapTime           = tapTime;
 R.tapAmplitude      = tapAmplitude;
+R.latency           = latency;              % nP x 1, tap re pulse (NaN = no response)
+R.tapIndexForPulse  = tapIdx;               % nP x 1, index into tapTime
 R.template          = template;
 R.patternLength     = N;                    % elements per repeat
-R.cycleStartTimes   = cycleStartTimes;      % nCycles x 1 repeat origins
+R.cycleRow          = cycleRow;             % nP x 1, repeat index per pulse
+R.cycleTapX         = cycleTapX;            % nP x 1, tap time re repeat onset (NaN = none)
 R.nCycles           = nCycles;
-R.pulseRepeat       = pulseRepeat;          % nP x 1
-R.pulseWrapX        = pulseWrapX;           % nP x 1, pulse time re repeat onset (s)
-R.tapRepeat         = tapRepeat;            % nTap x 1 (NaN before first pulse)
-R.tapWrapX          = tapWrapX;             % nTap x 1, tap time re repeat onset (s)
 R.refPos            = refPos;               % within-repeat pulse positions (s)
 R.patternPeriod     = patternPeriod;        % one repeat (s)
-R.measPeriod        = measPeriod;           % measured repeat period (s)
-R.periodCV          = cvPeriod;             % repeat-period coefficient of variation
 R.leadCycles        = leadCycles;           % pacer-only repeats before distractor
 R.unitScale         = unitScale;            % 1 => intervals in s, 1e-3 => ms
 
-%% ---- 8. Figure -------------------------------------------------------------
-buildFigure(R, stem);
+%% ---- 7. Figure -------------------------------------------------------------
+buildFigure(R, sprintf('%s: %s', stem, trial.Tag));
 end
 
 
@@ -185,11 +172,11 @@ function buildFigure(R, name)
 fig = figure('Name', 'Pattern tapping analysis', 'Color', 'w');
 try
     fig.Position(3:4) = [1100 800];
-    movegui(fig, 'onscreen');
+    movegui(fig, 'onscreen');   % nudge fully back onto the display
 catch
 end
-
-% 4 rows: template | raster occupy rows 1-3; the waveform strip occupies row 4.
+% 4 rows: template | raster occupy rows 1-3; the waveform strip occupies row 4
+% (~1/4 of the figure = about half its previous height).
 tOuter = tiledlayout(fig, 4, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
 
 axTL = nexttile(tOuter, 1, [3 1]);           % top-left: template (unchanged)
@@ -198,7 +185,7 @@ hts.plotTapTemplate(axTL, R.template);
 axRas = nexttile(tOuter, 2, [3 1]);          % top-right: folded raster
 drawRaster(axRas, R);
 
-axW = nexttile(tOuter, 7, [1 2]);            % bottom: waveform strip
+axW = nexttile(tOuter, 7, [1 2]);            % bottom: half-height waveform strip
 drawWaveform(axW, R);
 
 title(tOuter, strrep(name, '_', '\_'), 'FontWeight', 'bold', 'Interpreter', 'tex');
@@ -242,14 +229,14 @@ end
 
 % ============================================================================
 function drawRaster(ax, R)
-% One row per pattern repeat; every folded tap plotted at its time-re-repeat.
-% Repeat number (time) increases upward. Light vertical lines mark nominal
-% pulse positions; a horizontal line marks distractor onset.
+% One row per pattern repeat; a dot at each responding tap's time-re-repeat.
+% Repeat number (time) increases upward. Light vertical lines mark the nominal
+% within-repeat pulse positions; a horizontal line marks distractor onset.
 
-nC  = R.nCycles;
-ok  = ~isnan(R.tapWrapX);
-xv  = R.tapWrapX(ok);
-yv  = R.tapRepeat(ok);
+nC   = R.nCycles;
+resp = ~isnan(R.cycleTapX);
+xv   = R.cycleTapX(resp);
+yv   = R.cycleRow(resp);
 
 % x-limits: a little negative headroom for anticipations, out to one period
 if isempty(xv)
@@ -277,7 +264,7 @@ if yLead > 0.5 && yLead < nC + 0.5
         'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'right', 'FontSize', 8);
 end
 
-% folded taps
+% responding taps
 scatter(ax, xv, yv, 28, 's', 'filled', 'MarkerFaceColor', [0.15 0.15 0.15]);
 
 hold(ax, 'off');
@@ -293,7 +280,9 @@ end
 
 % ============================================================================
 function h = drawEventLines(ax, times, yspan, colr, style)
-% Draw a set of vertical lines as a single NaN-separated line object.
+% Draw a set of vertical lines as a single line object (NaN-separated) so it
+% carries one legend entry and does not rescale the axes.
+
 times = times(:).';
 if isempty(times)
     h = plot(ax, NaN, NaN, style, 'Color', colr);
