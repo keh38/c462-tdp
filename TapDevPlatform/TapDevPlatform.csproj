@@ -6,11 +6,11 @@
     <Nullable>disable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-	  <VersionPrefix>1.0.1</VersionPrefix>
+	  <VersionPrefix>1.1.0</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="C462.HTS" Version="1.7.2" />
+    <PackageReference Include="C462.HTS" Version="1.8.0" />
     <PackageReference Include="C462.Shared" Version="1.29.0" />
     <PackageReference Include="KLib" Version="1.8.1" />
     <PackageReference Include="KLib.Controls" Version="1.8.0" />

@@ -479,6 +479,8 @@ namespace TapDevPlatform
             SignalManager sigman = new SignalManager();
             sigman.Channels.Add(_currentConfig.StimulusA);
             sigman.Channels.Add(_currentConfig.StimulusB);
+            if (_currentConfig.TapEvokedStimulus != null)
+                sigman.Channels.Add(_currentConfig.TapEvokedStimulus);
 
             string chanName = "";
             int npts = 0;
