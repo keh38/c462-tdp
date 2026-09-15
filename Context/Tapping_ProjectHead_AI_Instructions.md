@@ -61,10 +61,19 @@ How fast should the distractor drift, and over how many trials?
 ### `CANNOT`
 
 The request needs the HTS to *do* something a pre-computed flat plan cannot
-express — most often a **closed-loop** condition, where an interval depends on the
-subject's response to a previous one. Those numbers do not exist until runtime, so
-no generator can produce them. Line 1 is `CANNOT`; then state briefly why, and if
-possible offer the nearest thing that *is* expressible.
+express — a **closed-loop** condition, where a *value* (an interval, a level, a
+delay) is a **function of the subject's response** to a previous event. Those
+numbers do not exist until runtime, so no generator can produce them. Line 1 is
+`CANNOT`; then state briefly why, and if possible offer the nearest thing that
+*is* expressible.
+
+**The trigger-vs-value line (Contract §5).** A sound *triggered by* the subject's
+taps is **not** `CANNOT` — that is the tap-evoked pathway, and you build it with a
+`GENERATOR` that sets `TapEvokedAudioEnabled` (see *Building generators*). Only a
+*value computed from a response* is `CANNOT`: an interval, level, or delay that
+depends on *how* the subject tapped. If the reactive part is just the **trigger**
+and every value is **pre-drawn**, it is expressible; if a **value must depend on
+the response**, it is not.
 
 ```
 CANNOT
@@ -86,8 +95,34 @@ fixed-sequence approximation if that would be useful.
 - **Keep the generator a thin recipe:** a parameters block, then assembly that
   calls the library. Relationships between fields — tiling, A/B balance,
   `DistractorIntervals = pacerIv` — are wiring and live in the generator.
-- **Follow the schema exactly:** milliseconds throughout, enums as text, pacer
-  length authoritative, arrays never hand-wrapped (`writeTrialList` handles that).
+- **Silent tails.** To make a stream fall silent before the trial ends — e.g. a
+  continuation trial where the pacer stops but the timing runs on — set
+  `PacerSilentTail` / `DistractorSilentTail`. These are an **integer count of
+  trailing intervals to mute, not a time**. If the request is in cycles or a
+  duration, convert it to a count: one cycle is one pattern-unit length
+  (`numel(PacerPattern)`, or the full length if the stream doesn't repeat); a
+  duration is the trailing intervals that sum to it. Default 0 = fully audible;
+  leave them untouched otherwise.
+- **Tap-evoked audio.** For a sound played *in response to* each tap, set
+  `TapEvokedAudioEnabled = true`. The sound and its baseline properties (including
+  a fixed delay) come from `TapEvokedStimulus`, configured in Elements — you do
+  **not** set those in the generator. To *vary* a tap-evoked property across taps
+  — its delay, frequency, level — add a `ParameterProfile` targeting that property
+  **using the profile targets exposed for this session** (by their short names);
+  such profiles are sequenced **per tap**, as a looping cycle sized to the
+  expected tap count, not per element. Jitter on the delay is just pre-drawn
+  values in the profile — generate them (e.g. from a distribution) with your
+  seeded `rng`. The delay is not a special field; it is one property of the
+  tap-evoked stimulus, authored like any other.
+- **Use only the exposed profile targets; never invent an `Item`.** The session
+  context lists the stimulus properties available to profile (short name → Item),
+  for A/B and for `TapEvokedStimulus` alike. Refer to them by short name and let
+  the exposed Item carry through. If a request needs a property that isn't
+  exposed, ask (`QUESTION`) rather than guessing a path.
+- **Follow the schema exactly:** milliseconds for intervals and delays (but silent
+  tails are integer counts and `TapEvokedAudioEnabled` is boolean), enums as text,
+  pacer length authoritative, arrays never hand-wrapped (`writeTrialList` handles
+  that).
 
 ## When the tool reports a failure
 

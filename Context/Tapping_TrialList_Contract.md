@@ -29,6 +29,10 @@ separate config file) as something like "Sound" and "Vibration" — but that
 binding is a config concern, not part of the trial. A trial only says which
 *role* each of A and B plays.
 
+There is also a third, separate stimulus for the tap-evoked pathway
+(`TapEvokedStimulus`); it is *not* part of the A/B role system — see *The
+tap-evoked pathway*, below.
+
 ### The interval convention
 
 An interval vector of length **N** describes **N elements**. `intervals[i]` is
@@ -99,12 +103,83 @@ anywhere. A non-dividing unit is legal for the same reason a non-dividing loop
 is: it tiles and truncates at the stream's end, drifting in phase — the drift the
 preview surfaces (§4).
 
+### Silent tails (`PacerSilentTail`, `DistractorSilentTail`)
+
+A stream's *audibility* and its role in *timing* are separable. Normally the pacer
+is audible for its whole length, and that length also defines the trial. A
+**silent tail** keeps the length — and the timing — while muting the end: the last
+`PacerSilentTail` intervals of the pacer are emitted **silently**. The clock runs
+through them unchanged, so the trial is exactly as long as before; only the sound
+stops early.
+
+The motivating case is **continuation**: the pacer falls silent while the trial
+runs on, measuring how well the subject maintains the beat unaided. Because the
+pacer still runs the clock, "the pacer defines the trial" (above) is untouched — a
+silent tail simply means part of the pacer makes no sound.
+
+`DistractorSilentTail` does the same for the distractor, and the two are
+**independent**: giving the pacer a tail while leaving the distractor's at 0 lets
+the distractor *carry on past* the pacer's silence (or the reverse).
+
+Both are **integer counts of intervals**, not times — the number of trailing
+intervals to emit silently — and both default to **0** (no tail; fully audible),
+so every trial without them is unchanged. The count is over the *flattened*
+intervals, so it composes with tiling without interacting: a tail and a
+`PacerPattern` are independent quantities. When an experiment is described in
+**cycles** ("the last two pattern cycles silent") or as a **duration**, convert it
+to an interval count before authoring — one cycle is one pattern-unit length
+(`numel(PacerPattern)`, or the full stream length if it does not repeat), and a
+duration is however many trailing intervals sum to it.
+
+### The tap-evoked pathway (`TapEvokedStimulus`)
+
+Alongside the pacer/distractor pathway (stimuli A and B) there is a separate
+**tap-evoked** pathway with its own stimulus, `TapEvokedStimulus`, configured like
+A and B in the Elements config (again a config concern, not part of the trial). It
+is switched on per trial by the boolean `TapEvokedAudioEnabled`.
+
+When enabled, it plays a sound **in response to each of the subject's taps** — the
+*trigger* is the tap, not a pre-listed time. This is the one place a stream's
+*timing* is reactive rather than pre-computed. Everything else about it, though,
+**is** pre-computed: which sound, at what level, after what delay — all authored
+ahead of time. Only "which tap, when" is decided at runtime.
+
+It is governed by the trial clock like everything else — it responds to taps for
+the length of the trial — and, for now, it plays **throughout**, unaffected by
+`PacerSilentTail`/`DistractorSilentTail`: during a silent continuation tail the
+tap-evoked sound keeps responding, which is often exactly when it matters most.
+
+The tap-evoked sound's properties — including its **delay** (the gap from tap to
+sound) — are ordinary stimulus properties of `TapEvokedStimulus`. Set a property
+to a fixed value for a constant setting, or vary it tap-by-tap with a
+ParameterProfile, exactly as for A and B. **The delay is not special**: a fixed
+delay is the default gap; a profile on the delay varies it per tap (jitter is
+simply drawn into the profile's values, offline, like any other varying property).
+Nothing about latency needs special authoring — it is one more property of the
+tap-evoked stimulus.
+
 ### Parameter profiles
 
-A **ParameterProfile** varies one stimulus parameter across elements — the
-motivating case is varying the Sound's frequency element by element. `Item` names
-the parameter (a path string); `Values` gives the per-element values, looped or
-broadcast over the elements exactly like the distractor.
+A **ParameterProfile** varies one stimulus parameter across a stream's
+presentations. `Item` names the parameter (a path string) and, through that path,
+the **stimulus** it belongs to; `Values` gives the successive values, looped or
+broadcast just like the distractor.
+
+Which stimulus the `Item` names decides how the values are **sequenced**, with no
+extra flag:
+
+- an `Item` on **A or B** is sequenced **per element** — value *i* applies to
+  element *i*, looping over the pacer's elements (the motivating case: varying the
+  sound's frequency element by element);
+- an `Item` on **`TapEvokedStimulus`** is sequenced **per tap** — value *k*
+  applies to the *k*-th tap-evoked sound, looping over the subject's taps.
+
+Same profile shape either way; the target stimulus decides the index. A
+tap-indexed profile's length is a **cycle**, not a total: the number of taps is
+not known ahead of time, so the values loop over however many taps occur. Size the
+cycle to the expected tap count so it reads well; the runtime just loops. All
+profiles live in the single `ParameterProfiles` list — routing is purely by
+`Item`.
 
 ### Run order
 
@@ -141,16 +216,19 @@ ignores unknown fields, so it is safe to include and is written automatically.
 | `Offset` | number | ms | Distractor phase. `LeadIn + Offset` must be ≥ 0 (the distractor cannot start before t = 0). Applies to the distractor only. |
 | `PacerIntervals` | number[] | ms | **Non-empty.** Every value finite and > 0. Length is **authoritative** — it defines the trial. |
 | `PacerPattern` | number[] | ms | **May be empty.** Empty = the pacer does not repeat (its period is the `PacerIntervals` length). If present, it is the repeating **unit** `PacerIntervals` was tiled from; every value finite and > 0. Set only by tiling — it is *never* a copy or re-measurement of the flattened `PacerIntervals`. |
+| `PacerSilentTail` | integer | count | **≥ 0; default 0.** Number of *trailing* pacer intervals emitted **silently**. The clock still runs through them, so trial length is unchanged — the pacer just stops sounding early (a continuation trial). Counts the *flattened* intervals. `0` = fully audible. |
 | `DistractorIntervals` | number[] | ms | May be empty (a pacer-only trial). If present, every value finite and > 0. Loops over the pacer; length is free. |
 | `DistractorPattern` | number[] | ms | **May be empty.** Empty when the distractor is *absent*, or present but *non-repeating*. If present, the repeating **unit** `DistractorIntervals` was tiled from; every value finite and > 0. "Absent" vs "present, non-repeating" is told by `DistractorIntervals`, not by this field. |
-| `ParameterProfiles` | ParameterProfile[] | — | May be empty. Each profile varies one parameter across elements. |
+| `DistractorSilentTail` | integer | count | **≥ 0; default 0.** Number of trailing distractor intervals emitted silently (after looping/truncation to the pacer). Independent of `PacerSilentTail` — lets the distractor stop before, or carry on after, the pacer. `0` = fully audible. |
+| `TapEvokedAudioEnabled` | boolean | — | Default **false**. When true, the tap-evoked pathway plays a sound in response to each tap, using `TapEvokedStimulus` (configured in Elements, like A/B). Its properties — including delay — are set or varied by `ParameterProfiles` whose `Item` targets `TapEvokedStimulus`. Plays throughout the trial, unaffected by the silent tails. |
+| `ParameterProfiles` | ParameterProfile[] | — | May be empty. Each varies one parameter across a stream's presentations — **per element** for an A/B stimulus, **per tap** for `TapEvokedStimulus`. Routing is by `Item` (see §1). |
 
 ### ParameterProfile
 
 | Field | JSON type | Rules |
 |---|---|---|
-| `Item` | string | Parameter path. **Controlled vocabulary is deferred** — see below. Today's one known value is `Sound.Tone.Frequency_Hz`. |
-| `Values` | number[] | Non-empty, all finite. Per-element values, looped/broadcast over the elements. `[1000 2000]` alternates; `[440]` broadcasts. Units are whatever the parameter uses (Hz for frequency). |
+| `Item` | string | Parameter path; it also identifies the **stimulus** it targets (A/B or `TapEvokedStimulus`), which sets the sequencing regime (per element vs per tap). **Controlled vocabulary is deferred** — see below. One known value is `Sound.Tone.Frequency_Hz`. |
+| `Values` | number[] | Non-empty, all finite. Successive per-presentation values, looped/broadcast over the elements (A/B) or taps (`TapEvokedStimulus`). `[1000 2000]` alternates; `[440]` broadcasts. Units are whatever the parameter uses (Hz for frequency, ms for a delay). |
 
 ### Encoding rules
 
@@ -165,7 +243,8 @@ ignores unknown fields, so it is safe to include and is written automatically.
   that.
 - **Units are milliseconds** for every interval field (LeadIn, Offset, Pacer,
   Distractor, and both Pattern fields). Profile `Values` use the parameter's own
-  units.
+  units. **Not everything is ms:** the `*SilentTail` fields are integer *interval
+  counts*, and `TapEvokedAudioEnabled` is a boolean.
 - **Filename is `Tapping.<name>.json`** — capital-T `Tapping.` prefix. This is
   the HTS config-file naming contract; it is deliberately *not* the same as the
   lowercase `+tapping` MATLAB package name. Do not lowercase it.
@@ -176,8 +255,10 @@ ignores unknown fields, so it is safe to include and is written automatically.
 behind it is fully general — varying AM rate or bandwidth instead of frequency
 needs no change to the HTS, only a different `Item`. The cost of that generality
 is that *deriving* the correct string is out of scope for this document. To
-obtain an `Item` other than the known `Sound.Tone.Frequency_Hz`, read it from the
-A/B stimulus configuration in the HTSController, or ask Ken. Do not guess it.
+obtain an `Item` other than the known `Sound.Tone.Frequency_Hz` — including any
+property of `TapEvokedStimulus`, such as its delay — read it from the A/B or
+`TapEvokedStimulus` stimulus configuration in the HTSController, or ask Ken. Do
+not guess it.
 
 ---
 
@@ -207,8 +288,8 @@ functions as `tapping.<name>(...)`.
 ### Trial construction
 
 - `tapping.newTrial()` — a blank trial struct with every field defaulted
-  (mirrors the C# constructor). Both pattern fields default to empty; that
-  default *is* the non-repeating sentinel.
+  (mirrors the C# constructor). Both pattern fields default to empty; both
+  silent-tail fields default to 0; `TapEvokedAudioEnabled` defaults to false.
 - `tapping.makeProfile(item, values)` — one ParameterProfile. For no parameter profile, 
   assign an empty array — `t.ParameterProfiles = []` — never tapping.makeProfile.empty 
   or any other form.
@@ -284,19 +365,23 @@ Two instruments answer two different questions. Keep them distinct.
 structural and sanity invariants: pacer present and positive, no NaN/Inf, enums
 legal, LeadIn ≥ 0, and so on. A non-empty pattern is checked like any interval
 vector (finite, > 0); an empty pattern is always legal — it *is* the
-non-repeating case. The gate deliberately does **not** judge whether the
-experiment is the one you intended — a well-formed file that implements the wrong
-idea passes, and in particular it does not judge whether a unit tiles the way you
-meant. Run it on every file before the HTS sees it.
+non-repeating case. A silent-tail field is a non-negative integer not exceeding
+its stream's length (a tail equal to the full length is legal but silences the
+stream entirely — the preview shows it); `TapEvokedAudioEnabled` is a boolean. The
+gate deliberately does **not** judge whether the experiment is the one you
+intended — a well-formed file that implements the wrong idea passes, and in
+particular it does not judge whether a unit tiles the way you meant. Run it on
+every file before the HTS sees it.
 
 **The previews — is it the experiment you meant?** Human judgment. `previewList`
 shows the run's composition (order, balance, durations); `previewTrial` shows one
 trial's structure (onset times, jitter, phase, profiles) — and, for a tiled
 stream, the repeating unit with its repeat count and remainder against the
-stream, flagging a non-dividing drift. This is where valid-but-wrong is caught —
-a looping distractor that drifts, an A/B imbalance, a frequency ramp that isn't
-what you pictured, a pattern unit that doesn't tile as intended. Nothing is
-malformed, so only a human looking can catch it.
+stream, flagging a non-dividing drift; the audible span and any silent tail; and
+whether the tap-evoked pathway is enabled and which profiles are tap-indexed. This
+is where valid-but-wrong is caught — a looping distractor that drifts, an A/B
+imbalance, a frequency ramp that isn't what you pictured, a silent tail longer or
+shorter than intended. Nothing is malformed, so only a human looking can catch it.
 
 Neither is ground truth. Both model the HTS's *reading* of the file. The only
 ground truth for timing is the recorded WAV and its loopback fiducial.
@@ -306,24 +391,37 @@ ground truth for timing is the recorded WAV and its loopback fiducial.
 ## 5. What this approach can and cannot express
 
 The HTS consumes only the *output vocabulary* — interval vectors, delays, a role
-binding, profile values. It has no knowledge of how those numbers were produced.
-So a change is **free** (no HTS change, no plumbing) exactly when it can be
-expressed as *different numbers in the existing fields*: new pattern rules, new
-constraints, new distributions, jitter, balancing, ordering, and new `Item`
-parameters all live entirely in the authoring layer.
+binding, profile values, an enable flag. It has no knowledge of how those numbers
+were produced. So a change is **free** (no HTS change, no plumbing) exactly when it
+can be expressed as *different numbers in the existing fields*: new pattern rules,
+new constraints, new distributions, jitter, balancing, ordering, silent tails, and
+new `Item` parameters all live entirely in the authoring layer.
 
-The **boundary** is reached when an experiment needs the HTS to *do something new
-with the numbers* rather than to play different numbers. The clearest case is a
-**closed-loop** condition — where an interval depends on the subject's response
-to a previous one. Those numbers do not exist until runtime, so they cannot be
-pre-computed into a flat plan. That is not a new recipe; it is a new HTS
-capability, and it is outside what this contract can express.
+**A reactive *trigger* is inside the boundary.** The tap-evoked pathway fires a
+sound *in response to* each tap, so its timing is decided at runtime — yet its
+content and its delay are pre-drawn values, authored ahead of time. The lesson: a
+stream whose *trigger* is the subject, but whose *values* are all pre-computed, is
+expressible — enable `TapEvokedAudioEnabled` and author its profiles like any
+other.
+
+**The boundary is reached when a pre-computed *value* would have to depend on the
+subject's behavior** — a **closed-loop** condition, where an interval or a
+property is a *function of the subject's response* to a previous event (e.g. "make
+each interval 10% longer than the subject's last tap gap," or "raise the level
+until the subject synchronizes"). Those numbers do not exist until runtime and no
+generator can produce them, so they cannot be pre-computed into a flat plan. That
+is not a new recipe; it is a new HTS capability, and it is outside what this
+contract can express.
+
+The distinction is **trigger vs. value**: a reactive *trigger* playing pre-drawn
+values is fine (tap-evoked); a *value computed from a response* is not.
 
 The test to apply to any request:
 
 > *Can this be written as pre-computed numbers in the existing fields, or does it
-> need the HTS to behave differently?*
+> need the HTS to behave differently? And if something is reactive, is it only the
+> trigger — or does a value depend on the response?*
 
-If the former — it is an authoring task, and belongs here. If the latter —
-recognize it, and say so, rather than producing a plausible flat plan that
-silently cannot implement the intent.
+If it is pre-computable (a reactive trigger counts) — it is an authoring task, and
+belongs here. If a value depends on the response — recognize it, and say so, rather
+than producing a plausible flat plan that silently cannot implement the intent.
