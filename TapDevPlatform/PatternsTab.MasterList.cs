@@ -172,10 +172,13 @@ namespace TapDevPlatform
             Col("Tag", nameof(TrialRowVM.Tag), 110, readOnly: false);  // the ONLY editable column
             Col("Pacer", nameof(TrialRowVM.Pacer), 50);
             Col("Response", nameof(TrialRowVM.Response), 90);
+            Col("Tap-evoked", nameof(TrialRowVM.TapEvoked), 90);
             Col("Pacer iv", nameof(TrialRowVM.PacerSummary), 100);
             Col("Distractor", nameof(TrialRowVM.DistractorSummary), 110);
             Col("LeadIn", nameof(TrialRowVM.LeadIn), 60);
             Col("Offset", nameof(TrialRowVM.Offset), 60);
+            Col("Pacer tail", nameof(TrialRowVM.PacerTail), 90);
+            Col("Distractor tail", nameof(TrialRowVM.DistractorTail), 90);
             Col("Duration", nameof(TrialRowVM.Duration), 80);
             Col("Profile", nameof(TrialRowVM.Profile), 130);
             Col("Source", nameof(TrialRowVM.Source), 120);

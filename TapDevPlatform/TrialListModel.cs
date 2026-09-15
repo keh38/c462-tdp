@@ -28,6 +28,9 @@ namespace TDP.Tapping   // rename to match your project
         public double[] PacerPattern { get; set; } = new double[0];      // empty = pacer-only
         public double[] DistractorPattern { get; set; } = new double[0]; // empty = pacer-only
         public List<ParameterProfileDto> ParameterProfiles { get; set; } = new List<ParameterProfileDto>();
+        public int PacerSilentTail { get; set; }
+        public int DistractorSilentTail { get; set; }
+        public bool TapEvokedAudioEnabled { get; set; }
     }
 
     public sealed class ParameterProfileDto

@@ -46,6 +46,7 @@ namespace TDP.Sessions   // rename to match your project
         // --- everything else: computed, read-only ---
         public string Pacer => T.Pacer;
         public string Response => T.ResponseInstructions;
+        public string TapEvoked => T.TapEvokedAudioEnabled ? "\u2713" : "";
         public string PacerSummary => SummariseStream(T.PacerIntervals, T.PacerPattern);
         public string DistractorSummary
         {
@@ -59,6 +60,8 @@ namespace TDP.Sessions   // rename to match your project
 
         public string LeadIn => Fmt(T.LeadIn);
         public string Offset => Fmt(T.Offset);
+        public string PacerTail => T.PacerSilentTail > 0 ? T.PacerSilentTail.ToString(CultureInfo.InvariantCulture) : "\u2014";
+        public string DistractorTail => T.DistractorSilentTail > 0 ? T.DistractorSilentTail.ToString(CultureInfo.InvariantCulture) : "\u2014";
         public string Duration =>
             ((T.PacerIntervals == null ? 0.0 : T.PacerIntervals.Sum()) / 1000.0)
                 .ToString("0.###", CultureInfo.InvariantCulture) + " s";
