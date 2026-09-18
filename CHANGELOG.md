@@ -1,5 +1,11 @@
 # Changelog
 
+### v1.1.1 (2026-09-18)
+#### Fixed
+- new chat button not properly wired up
+
+---
+
 ### v1.1 (2026-09-17)
 #### Added
 - silent tail and tap-evoked audio options

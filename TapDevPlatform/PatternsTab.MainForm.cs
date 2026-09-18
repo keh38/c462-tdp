@@ -273,28 +273,8 @@ namespace TapDevPlatform
 
         private void OnNewChatClicked(object sender, EventArgs e)
         {
-            // 4d (deferred): before clearing, persist _conversation.History under
-            // _subjectName and add an entry to chatListBox so it can be reloaded.
-
-            // 4b: null the conversation (and client) rather than Reset() so the NEXT
-            // send rebuilds via EnsureConversationReady — which reloads the system
-            // prompt, picking up edits to the instructions doc without an app restart.
-            // The key stays in the credential store, so no dialog reappears. In 4d you
-            // may prefer _conversation.Reset() to keep the built client/prompt and just
-            // persist + clear the history.
-            _conversation = null;
-            _client = null;
-
-            transcriptRichTextBox.Clear();
-
-            // If trialsDataGridView is data-bound in 4c, clear the bound list instead
-            // (Rows.Clear() throws when a DataSource is set).
-            trialsDataGridView.Rows.Clear();
-
-            _pendingGeneratorCode = null;
-            generateButton.Enabled = false;
-            inputTextBox.Clear();
-            inputTextBox.Focus();
+            StartNewSession();     // persists the outgoing session, mints a fresh _session (new Id), clears the UI
+            RefreshSessionList();
         }
 
         // ----- helpers -----------------------------------------------------------
