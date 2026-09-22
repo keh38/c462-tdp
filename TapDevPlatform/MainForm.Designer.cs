@@ -37,6 +37,7 @@
             sceneNameLabel = new ToolStripStatusLabel();
             tabControl = new TabControl();
             patternsPage = new TabPage();
+            patternsHelpButton = new Button();
             previewButton = new Button();
             chatListView = new ListView();
             sendButton = new Button();
@@ -62,7 +63,8 @@
             configFileDropDown = new ComboBox();
             propertyGrid = new PropertyGrid();
             imageList = new ImageList(components);
-            patternsHelpButton = new Button();
+            label3 = new Label();
+            intervalTableDropDown = new ComboBox();
             statusStrip.SuspendLayout();
             tabControl.SuspendLayout();
             patternsPage.SuspendLayout();
@@ -74,9 +76,10 @@
             // 
             statusStrip.ImageScalingSize = new Size(20, 20);
             statusStrip.Items.AddRange(new ToolStripItem[] { connectionStatusLabel, matlabStatusLabel, subjectStatusLabel, sceneNameLabel });
-            statusStrip.Location = new Point(0, 842);
+            statusStrip.Location = new Point(0, 625);
             statusStrip.Name = "statusStrip";
-            statusStrip.Size = new Size(1137, 30);
+            statusStrip.Padding = new Padding(1, 0, 12, 0);
+            statusStrip.Size = new Size(995, 29);
             statusStrip.TabIndex = 0;
             statusStrip.Text = "statusStrip1";
             // 
@@ -84,7 +87,7 @@
             // 
             connectionStatusLabel.BorderSides = ToolStripStatusLabelBorderSides.Right;
             connectionStatusLabel.Name = "connectionStatusLabel";
-            connectionStatusLabel.Size = new Size(111, 24);
+            connectionStatusLabel.Size = new Size(90, 24);
             connectionStatusLabel.Text = "Not connected";
             // 
             // matlabStatusLabel
@@ -92,21 +95,21 @@
             matlabStatusLabel.BorderSides = ToolStripStatusLabelBorderSides.Right;
             matlabStatusLabel.Image = Properties.Resources.Matlab_Logo_32;
             matlabStatusLabel.Name = "matlabStatusLabel";
-            matlabStatusLabel.Size = new Size(153, 24);
+            matlabStatusLabel.Size = new Size(125, 24);
             matlabStatusLabel.Text = "MATLAB available";
             // 
             // subjectStatusLabel
             // 
             subjectStatusLabel.BorderSides = ToolStripStatusLabelBorderSides.Right;
             subjectStatusLabel.Name = "subjectStatusLabel";
-            subjectStatusLabel.Size = new Size(65, 24);
+            subjectStatusLabel.Size = new Size(53, 24);
             subjectStatusLabel.Text = "Subject:";
             // 
             // sceneNameLabel
             // 
             sceneNameLabel.BorderSides = ToolStripStatusLabelBorderSides.Right;
             sceneNameLabel.Name = "sceneNameLabel";
-            sceneNameLabel.Size = new Size(55, 24);
+            sceneNameLabel.Size = new Size(45, 24);
             sceneNameLabel.Text = "Scene:";
             // 
             // tabControl
@@ -115,13 +118,16 @@
             tabControl.Controls.Add(elementsPage);
             tabControl.Dock = DockStyle.Fill;
             tabControl.Location = new Point(0, 0);
+            tabControl.Margin = new Padding(3, 2, 3, 2);
             tabControl.Name = "tabControl";
             tabControl.SelectedIndex = 0;
-            tabControl.Size = new Size(1137, 842);
+            tabControl.Size = new Size(995, 625);
             tabControl.TabIndex = 1;
             // 
             // patternsPage
             // 
+            patternsPage.Controls.Add(label3);
+            patternsPage.Controls.Add(intervalTableDropDown);
             patternsPage.Controls.Add(patternsHelpButton);
             patternsPage.Controls.Add(previewButton);
             patternsPage.Controls.Add(chatListView);
@@ -138,19 +144,32 @@
             patternsPage.Controls.Add(matlabFunctionDropDown);
             patternsPage.Controls.Add(inputTextBox);
             patternsPage.Controls.Add(transcriptRichTextBox);
-            patternsPage.Location = new Point(4, 29);
+            patternsPage.Location = new Point(4, 24);
+            patternsPage.Margin = new Padding(3, 2, 3, 2);
             patternsPage.Name = "patternsPage";
-            patternsPage.Padding = new Padding(3);
-            patternsPage.Size = new Size(1129, 809);
+            patternsPage.Padding = new Padding(3, 2, 3, 2);
+            patternsPage.Size = new Size(987, 597);
             patternsPage.TabIndex = 1;
             patternsPage.Text = "Patterns";
             patternsPage.UseVisualStyleBackColor = true;
             // 
+            // patternsHelpButton
+            // 
+            patternsHelpButton.Location = new Point(638, 353);
+            patternsHelpButton.Margin = new Padding(3, 2, 3, 2);
+            patternsHelpButton.Name = "patternsHelpButton";
+            patternsHelpButton.Size = new Size(84, 22);
+            patternsHelpButton.TabIndex = 19;
+            patternsHelpButton.Text = "Help";
+            patternsHelpButton.UseVisualStyleBackColor = true;
+            patternsHelpButton.Click += patternsHelpButton_Click;
+            // 
             // previewButton
             // 
-            previewButton.Location = new Point(557, 471);
+            previewButton.Location = new Point(487, 353);
+            previewButton.Margin = new Padding(3, 2, 3, 2);
             previewButton.Name = "previewButton";
-            previewButton.Size = new Size(154, 29);
+            previewButton.Size = new Size(135, 22);
             previewButton.TabIndex = 18;
             previewButton.Text = "Preview trial";
             previewButton.UseVisualStyleBackColor = true;
@@ -158,35 +177,39 @@
             // 
             // chatListView
             // 
-            chatListView.Location = new Point(19, 60);
+            chatListView.Location = new Point(17, 45);
+            chatListView.Margin = new Padding(3, 2, 3, 2);
             chatListView.Name = "chatListView";
-            chatListView.Size = new Size(338, 322);
+            chatListView.Size = new Size(296, 180);
             chatListView.TabIndex = 17;
             chatListView.UseCompatibleStateImageBehavior = false;
             // 
             // sendButton
             // 
-            sendButton.Location = new Point(1000, 445);
+            sendButton.Location = new Point(875, 334);
+            sendButton.Margin = new Padding(3, 2, 3, 2);
             sendButton.Name = "sendButton";
-            sendButton.Size = new Size(94, 29);
+            sendButton.Size = new Size(82, 22);
             sendButton.TabIndex = 16;
             sendButton.Text = "Send";
             sendButton.UseVisualStyleBackColor = true;
             // 
             // generateButton
             // 
-            generateButton.Location = new Point(383, 471);
+            generateButton.Location = new Point(335, 353);
+            generateButton.Margin = new Padding(3, 2, 3, 2);
             generateButton.Name = "generateButton";
-            generateButton.Size = new Size(154, 29);
+            generateButton.Size = new Size(135, 22);
             generateButton.TabIndex = 15;
             generateButton.Text = "Generate and run";
             generateButton.UseVisualStyleBackColor = true;
             // 
             // newChatButton
             // 
-            newChatButton.Location = new Point(263, 25);
+            newChatButton.Location = new Point(230, 19);
+            newChatButton.Margin = new Padding(3, 2, 3, 2);
             newChatButton.Name = "newChatButton";
-            newChatButton.Size = new Size(94, 29);
+            newChatButton.Size = new Size(82, 22);
             newChatButton.TabIndex = 12;
             newChatButton.Text = "New";
             newChatButton.UseVisualStyleBackColor = true;
@@ -194,26 +217,27 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(19, 32);
+            label2.Location = new Point(17, 24);
             label2.Name = "label2";
-            label2.Size = new Size(87, 20);
+            label2.Size = new Size(71, 15);
             label2.TabIndex = 11;
             label2.Text = "Chat history";
             // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(19, 391);
+            label1.Location = new Point(17, 293);
             label1.Name = "label1";
-            label1.Size = new Size(178, 20);
+            label1.Size = new Size(144, 15);
             label1.TabIndex = 10;
             label1.Text = "MATLAB analysis function";
             // 
             // stopButton
             // 
-            stopButton.Location = new Point(259, 483);
+            stopButton.Location = new Point(227, 362);
+            stopButton.Margin = new Padding(3, 2, 3, 2);
             stopButton.Name = "stopButton";
-            stopButton.Size = new Size(98, 29);
+            stopButton.Size = new Size(86, 22);
             stopButton.TabIndex = 9;
             stopButton.Text = "STOP";
             stopButton.UseVisualStyleBackColor = true;
@@ -221,39 +245,37 @@
             // 
             // logTextBox
             // 
-            logTextBox.Location = new Point(19, 557);
-            logTextBox.Margin = new Padding(3, 4, 3, 4);
+            logTextBox.Location = new Point(17, 418);
             logTextBox.Multiline = true;
             logTextBox.Name = "logTextBox";
             logTextBox.ReadOnly = true;
             logTextBox.ScrollBars = ScrollBars.Vertical;
-            logTextBox.Size = new Size(338, 223);
+            logTextBox.Size = new Size(296, 168);
             logTextBox.TabIndex = 8;
             // 
             // dataPathTextBox
             // 
-            dataPathTextBox.Location = new Point(19, 519);
-            dataPathTextBox.Margin = new Padding(3, 4, 3, 4);
+            dataPathTextBox.Location = new Point(17, 389);
             dataPathTextBox.Name = "dataPathTextBox";
             dataPathTextBox.ReadOnly = true;
-            dataPathTextBox.Size = new Size(338, 27);
+            dataPathTextBox.Size = new Size(296, 23);
             dataPathTextBox.TabIndex = 7;
             // 
             // trialsDataGridView
             // 
             trialsDataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            trialsDataGridView.Location = new Point(383, 507);
-            trialsDataGridView.Margin = new Padding(3, 4, 3, 4);
+            trialsDataGridView.Location = new Point(335, 380);
             trialsDataGridView.Name = "trialsDataGridView";
             trialsDataGridView.RowHeadersWidth = 51;
-            trialsDataGridView.Size = new Size(729, 273);
+            trialsDataGridView.Size = new Size(638, 205);
             trialsDataGridView.TabIndex = 6;
             // 
             // runButton
             // 
-            runButton.Location = new Point(19, 483);
+            runButton.Location = new Point(17, 362);
+            runButton.Margin = new Padding(3, 2, 3, 2);
             runButton.Name = "runButton";
-            runButton.Size = new Size(98, 29);
+            runButton.Size = new Size(86, 22);
             runButton.TabIndex = 5;
             runButton.Text = "RUN";
             runButton.UseVisualStyleBackColor = true;
@@ -262,9 +284,10 @@
             // matlabFunctionDropDown
             // 
             matlabFunctionDropDown.FormattingEnabled = true;
-            matlabFunctionDropDown.Location = new Point(19, 413);
+            matlabFunctionDropDown.Location = new Point(17, 310);
+            matlabFunctionDropDown.Margin = new Padding(3, 2, 3, 2);
             matlabFunctionDropDown.Name = "matlabFunctionDropDown";
-            matlabFunctionDropDown.Size = new Size(338, 28);
+            matlabFunctionDropDown.Size = new Size(296, 23);
             matlabFunctionDropDown.TabIndex = 4;
             matlabFunctionDropDown.SelectedIndexChanged += matlabFunctionDropDown_SelectedIndexChanged;
             // 
@@ -272,21 +295,23 @@
             // 
             inputTextBox.AcceptsReturn = true;
             inputTextBox.BorderStyle = BorderStyle.FixedSingle;
-            inputTextBox.Location = new Point(383, 313);
+            inputTextBox.Location = new Point(335, 235);
+            inputTextBox.Margin = new Padding(3, 2, 3, 2);
             inputTextBox.Multiline = true;
             inputTextBox.Name = "inputTextBox";
             inputTextBox.ScrollBars = ScrollBars.Vertical;
-            inputTextBox.Size = new Size(727, 126);
+            inputTextBox.Size = new Size(636, 95);
             inputTextBox.TabIndex = 1;
             // 
             // transcriptRichTextBox
             // 
             transcriptRichTextBox.BorderStyle = BorderStyle.FixedSingle;
-            transcriptRichTextBox.Location = new Point(383, 25);
+            transcriptRichTextBox.Location = new Point(335, 19);
+            transcriptRichTextBox.Margin = new Padding(3, 2, 3, 2);
             transcriptRichTextBox.Name = "transcriptRichTextBox";
             transcriptRichTextBox.ReadOnly = true;
             transcriptRichTextBox.ScrollBars = RichTextBoxScrollBars.Vertical;
-            transcriptRichTextBox.Size = new Size(725, 273);
+            transcriptRichTextBox.Size = new Size(635, 206);
             transcriptRichTextBox.TabIndex = 0;
             transcriptRichTextBox.Text = "";
             // 
@@ -301,19 +326,19 @@
             elementsPage.Controls.Add(signalGraph);
             elementsPage.Controls.Add(configFileDropDown);
             elementsPage.Controls.Add(propertyGrid);
-            elementsPage.Location = new Point(4, 29);
+            elementsPage.Location = new Point(4, 24);
+            elementsPage.Margin = new Padding(3, 2, 3, 2);
             elementsPage.Name = "elementsPage";
-            elementsPage.Padding = new Padding(3);
-            elementsPage.Size = new Size(1129, 809);
+            elementsPage.Padding = new Padding(3, 2, 3, 2);
+            elementsPage.Size = new Size(987, 604);
             elementsPage.TabIndex = 0;
             elementsPage.Text = "Elements";
             // 
             // elementsHelpButton
             // 
-            elementsHelpButton.Location = new Point(1054, 15);
-            elementsHelpButton.Margin = new Padding(3, 4, 3, 4);
+            elementsHelpButton.Location = new Point(922, 11);
             elementsHelpButton.Name = "elementsHelpButton";
-            elementsHelpButton.Size = new Size(67, 31);
+            elementsHelpButton.Size = new Size(59, 23);
             elementsHelpButton.TabIndex = 5;
             elementsHelpButton.Text = "Help";
             elementsHelpButton.UseVisualStyleBackColor = true;
@@ -322,20 +347,18 @@
             // errorTextBox
             // 
             errorTextBox.ForeColor = Color.Firebrick;
-            errorTextBox.Location = new Point(465, 531);
-            errorTextBox.Margin = new Padding(3, 4, 3, 4);
+            errorTextBox.Location = new Point(407, 398);
             errorTextBox.Multiline = true;
             errorTextBox.Name = "errorTextBox";
             errorTextBox.ReadOnly = true;
-            errorTextBox.Size = new Size(476, 196);
+            errorTextBox.Size = new Size(417, 148);
             errorTextBox.TabIndex = 6;
             // 
             // NewButton
             // 
-            NewButton.Location = new Point(202, 15);
-            NewButton.Margin = new Padding(3, 4, 3, 4);
+            NewButton.Location = new Point(177, 11);
             NewButton.Name = "NewButton";
-            NewButton.Size = new Size(67, 31);
+            NewButton.Size = new Size(59, 23);
             NewButton.TabIndex = 5;
             NewButton.Text = "New";
             NewButton.UseVisualStyleBackColor = true;
@@ -343,10 +366,9 @@
             // 
             // DeleteButton
             // 
-            DeleteButton.Location = new Point(351, 15);
-            DeleteButton.Margin = new Padding(3, 4, 3, 4);
+            DeleteButton.Location = new Point(307, 11);
             DeleteButton.Name = "DeleteButton";
-            DeleteButton.Size = new Size(67, 31);
+            DeleteButton.Size = new Size(59, 23);
             DeleteButton.TabIndex = 4;
             DeleteButton.Text = "Delete";
             DeleteButton.UseVisualStyleBackColor = true;
@@ -354,10 +376,9 @@
             // 
             // SaveButton
             // 
-            SaveButton.Location = new Point(277, 15);
-            SaveButton.Margin = new Padding(3, 4, 3, 4);
+            SaveButton.Location = new Point(242, 11);
             SaveButton.Name = "SaveButton";
-            SaveButton.Size = new Size(67, 31);
+            SaveButton.Size = new Size(59, 23);
             SaveButton.TabIndex = 3;
             SaveButton.Text = "Save";
             SaveButton.UseVisualStyleBackColor = true;
@@ -366,27 +387,28 @@
             // signalGraph
             // 
             signalGraph.BackColor = SystemColors.Control;
-            signalGraph.Location = new Point(425, 59);
-            signalGraph.Margin = new Padding(3, 4, 3, 4);
+            signalGraph.Location = new Point(372, 44);
             signalGraph.Name = "signalGraph";
-            signalGraph.Size = new Size(534, 436);
+            signalGraph.Size = new Size(467, 327);
             signalGraph.TabIndex = 2;
             // 
             // configFileDropDown
             // 
             configFileDropDown.DropDownStyle = ComboBoxStyle.DropDownList;
             configFileDropDown.FormattingEnabled = true;
-            configFileDropDown.Location = new Point(19, 15);
+            configFileDropDown.Location = new Point(17, 11);
+            configFileDropDown.Margin = new Padding(3, 2, 3, 2);
             configFileDropDown.Name = "configFileDropDown";
-            configFileDropDown.Size = new Size(158, 28);
+            configFileDropDown.Size = new Size(139, 23);
             configFileDropDown.TabIndex = 1;
             configFileDropDown.SelectedIndexChanged += configFileDropDown_SelectedIndexChanged;
             // 
             // propertyGrid
             // 
-            propertyGrid.Location = new Point(19, 59);
+            propertyGrid.Location = new Point(17, 44);
+            propertyGrid.Margin = new Padding(3, 2, 3, 2);
             propertyGrid.Name = "propertyGrid";
-            propertyGrid.Size = new Size(399, 697);
+            propertyGrid.Size = new Size(349, 523);
             propertyGrid.TabIndex = 0;
             propertyGrid.ToolbarVisible = false;
             propertyGrid.PropertyValueChanged += propertyGrid_PropertyValueChanged;
@@ -399,24 +421,33 @@
             imageList.Images.SetKeyName(0, "nav_plain_red.png");
             imageList.Images.SetKeyName(1, "nav_plain_green.png");
             // 
-            // patternsHelpButton
+            // label3
             // 
-            patternsHelpButton.Location = new Point(729, 471);
-            patternsHelpButton.Name = "patternsHelpButton";
-            patternsHelpButton.Size = new Size(96, 29);
-            patternsHelpButton.TabIndex = 19;
-            patternsHelpButton.Text = "Help";
-            patternsHelpButton.UseVisualStyleBackColor = true;
-            patternsHelpButton.Click += patternsHelpButton_Click;
+            label3.AutoSize = true;
+            label3.Location = new Point(16, 242);
+            label3.Name = "label3";
+            label3.Size = new Size(75, 15);
+            label3.TabIndex = 21;
+            label3.Text = "Interval table";
+            // 
+            // intervalTableDropDown
+            // 
+            intervalTableDropDown.FormattingEnabled = true;
+            intervalTableDropDown.Location = new Point(16, 259);
+            intervalTableDropDown.Margin = new Padding(3, 2, 3, 2);
+            intervalTableDropDown.Name = "intervalTableDropDown";
+            intervalTableDropDown.Size = new Size(296, 23);
+            intervalTableDropDown.TabIndex = 20;
             // 
             // MainForm
             // 
-            AutoScaleDimensions = new SizeF(8F, 20F);
+            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1137, 872);
+            ClientSize = new Size(995, 654);
             Controls.Add(tabControl);
             Controls.Add(statusStrip);
             FormBorderStyle = FormBorderStyle.Fixed3D;
+            Margin = new Padding(3, 2, 3, 2);
             MaximizeBox = false;
             Name = "MainForm";
             Text = "Tapping Pattern Development Platform";
@@ -470,5 +501,7 @@
         private Button previewButton;
         private Button elementsHelpButton;
         private Button patternsHelpButton;
+        private Label label3;
+        private ComboBox intervalTableDropDown;
     }
 }

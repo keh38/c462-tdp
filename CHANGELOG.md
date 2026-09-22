@@ -1,5 +1,11 @@
 # Changelog
 
+### v1.2 (2026-09-22)
+#### Added
+- ability to read intervals from table
+
+---
+
 ### v1.1.1 (2026-09-18)
 #### Fixed
 - new chat button not properly wired up

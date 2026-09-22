@@ -34,6 +34,8 @@ namespace TapDevPlatform
         private bool _runStarted;
         private bool _endRunStarted;
 
+        private string _tableShape = "";
+
         private ConversationManager _conversation = null;
         private string _subjectName = "_unnamed";
 
@@ -61,6 +63,7 @@ namespace TapDevPlatform
             _network.SceneChangeHandler += HandleSceneChange;
 
             InitSignalGraph();
+            EnumerateIntervalTables();
             EnumerateMATLABFunctions();
 
             UpdateProjectAndSubject(TdpAppSettings.LastProjectSubject);
@@ -89,6 +92,10 @@ namespace TapDevPlatform
             if (haveMATLAB)
             {
                 MATLAB.AddPath(FileLocations.MatlabAnalysisFolder);
+                if (!string.IsNullOrEmpty(TdpAppSettings.LastIntervalTable))
+                {
+                    ValidateIntervalTable(TdpAppSettings.LastIntervalTable);
+                }
             }
         }
 
@@ -189,6 +196,28 @@ namespace TapDevPlatform
                 top: 0);
             signalGraph.Plot.Layout.Fixed(padding);
             signalGraph.Refresh();
+        }
+
+        private void EnumerateIntervalTables()
+        {
+            var tableFileNames = Directory.GetFiles(FileLocations.GeneratorFolder, "*.xlsx", SearchOption.TopDirectoryOnly)
+                .Select(Path.GetFileNameWithoutExtension)
+                .ToList();
+            intervalTableDropDown.Items.Clear();
+            intervalTableDropDown.Items.AddRange(tableFileNames.ToArray());
+
+            if (tableFileNames.Count == 0)
+                return;
+
+            if (tableFileNames.Contains(TdpAppSettings.LastIntervalTable))
+            {
+                intervalTableDropDown.SelectedItem = TdpAppSettings.LastIntervalTable;
+            }
+            else
+            {
+                intervalTableDropDown.SelectedIndex = 0;
+                TdpAppSettings.LastIntervalTable = tableFileNames[0];
+            }
         }
 
         private void EnumerateMATLABFunctions()
@@ -629,6 +658,17 @@ namespace TapDevPlatform
 
             stopButton.Enabled = false;
             _network.SendMessage("Abort");
+        }
+
+        private void intervalTableDropDown_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            TdpAppSettings.LastIntervalTable = intervalTableDropDown.SelectedItem.ToString();
+            ValidateIntervalTable(TdpAppSettings.LastIntervalTable);
+        }
+
+        private void ValidateIntervalTable(string path)
+        {
+            _tableShape = MATLAB.ValidateIntervalTable(FileLocations.GeneratorFolder, path);
         }
 
         private void matlabFunctionDropDown_SelectedIndexChanged(object sender, EventArgs e)

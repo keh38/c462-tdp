@@ -105,5 +105,18 @@ namespace TapDevPlatform
             var runOpts = new RunOptions() { Nargout = 0 };
             _engine.eval(runOpts, $"tapping.previewTrialList('{jsonPath}')");
         }
+
+        public static string ValidateIntervalTable(string folder, string name)
+        {
+            _engine.cd(folder);
+
+            RunOptions runOpts = new RunOptions() { Nargout = 2 };
+            (double o1, double o2) result = _engine.tapping.validateIntervalTable(runOpts, name);
+
+            int rows = (int)result.o1;
+            int cols = (int)result.o2;
+
+            return $"{rows} rows x {cols} intervals";
+        }
     }
 }

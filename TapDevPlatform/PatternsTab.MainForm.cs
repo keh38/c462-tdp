@@ -122,10 +122,14 @@ namespace TapDevPlatform
         /// </summary>
         private void SeedSessionContext()
         {
-            string body = BuildProfileTargetContext(_currentConfig.ProfileTargets);   // your List<ProfileTarget>
+            var sb = new StringBuilder();
+            sb.AppendLine(BuildProfileTargetContext(_currentConfig.ProfileTargets));
+            sb.AppendLine();
+            sb.Append(BuildIntervalTableContext());
+            
             _conversation.LoadHistory(new[]
             {
-                ChatMessage.User(ProfileContextMarker + "\n" + body),
+                ChatMessage.User(ProfileContextMarker + "\n" + sb.ToString()),
                 ChatMessage.Assistant(ProfileContextAck)
             });
             AppendTranscript("—", "session parameters loaded", NoteColor, boldLabel: false);
@@ -150,6 +154,31 @@ namespace TapDevPlatform
                 sb.AppendLine($"  \u2022 {t.ShortName} \u2192 {t.Item}");
             sb.Append("A profile is optional; omit ParameterProfiles entirely if none is wanted.");
             return sb.ToString();
+        }
+
+        private string BuildIntervalTableContext()
+        {
+            // Wherever the TDP holds the currently selected table. Single table for now.
+            string path = TdpAppSettings.LastIntervalTable;
+            if (string.IsNullOrEmpty(path) || !File.Exists(Path.Combine(FileLocations.GeneratorFolder, $"{path}.xlsx")))
+                return "No interval table is available this session; do not call tapping.loadIntervalTable.";
+
+            // The NAME is what the assistant passes to loadIntervalTable — the filename stem,
+            // which MUST match the name the tool copies into the sandbox as <name>.xlsx.
+            string name = Path.GetFileNameWithoutExtension(path);
+            string shape = TryDescribeTableShape(path);   // "240 rows x 6 intervals", or "" if unknown
+
+            return
+                $"An interval table named \"{name}\" is available this session" +
+                (string.IsNullOrEmpty(shape) ? "" : $" ({shape})") + ". " +
+                $"Draw whole rows from it for the pacer or the distractor: tapping.loadIntervalTable(\"{name}\") " +
+                "then tapping.drawTableRows. Seed before drawing; a drawn row is role-agnostic. " +
+                "Do not transcribe the table's values yourself — the generator reads it.";
+        }
+
+        private string TryDescribeTableShape(string path)
+        {
+            return _tableShape;
         }
 
         private static bool IsSessionContext(ChatMessage m)

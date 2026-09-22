@@ -14,6 +14,7 @@ namespace TapDevPlatform
         public string lastConfigFile = "";
         public string lastMatlabFile = "";
         public string lastProjectSubject = "";
+        public string lastIntervalTable = "";
 
         private static TdpAppSettings _instance = null;
         private static TdpAppSettings instance
@@ -57,6 +58,12 @@ namespace TapDevPlatform
         {
             get { return !string.IsNullOrEmpty(instance.lastProjectSubject) ? instance.lastProjectSubject : "Scratch/_anonymous"; }
             set { instance.lastProjectSubject = value; Save(); }
+        }
+
+        public static string LastIntervalTable
+        {
+            get { return instance.lastIntervalTable; }
+            set { instance.lastIntervalTable = value; Save(); }
         }
 
         private static void Save()

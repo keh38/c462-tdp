@@ -181,6 +181,19 @@ cycle to the expected tap count so it reads well; the runtime just loops. All
 profiles live in the single `ParameterProfiles` list — routing is purely by
 `Item`.
 
+### Interval tables (a pre-computed draw-source)
+
+Researchers may curate an **interval table** — a set of interval rows built
+offline to satisfy some criterion — and make it available to a session. It is a
+*source of interval vectors*, nothing more: a generator can draw whole rows from
+it and feed them to **either** the pacer or the distractor. Drawing happens in
+seeded MATLAB via `tapping.loadIntervalTable` / `tapping.drawTableRows` (§3), so
+the draw is reproducible and the table's values never pass through the authoring
+conversation — the table is announced to the author by *name and shape* only.
+Because the drawn numbers land in `PacerIntervals`/`DistractorIntervals` like any
+others, a table adds a *source*, not new trial structure: it composes with tiling
+(a drawn row can be the repeating unit) and with everything else unchanged.
+
 ### Run order
 
 Trials play in the order they appear in the list. **List position is playback
@@ -284,6 +297,23 @@ functions as `tapping.<name>(...)`.
   the pattern field can never be forgotten. Non-dividing tiling is legal — it
   truncates at `targetCount`, drifting in phase. This is the **only** thing that
   sets a pattern field non-empty.
+- `tapping.loadIntervalTable(name)` — load a curated **interval table** (a
+  researcher-supplied set of interval rows) available this session, returning an
+  `R × C` numeric matrix (`R` rows, each a row of `C` intervals in ms). A second
+  output, `[T, info] = ...`, returns identity metadata (`Name`, `Rows`, `Cols`,
+  `Hash`) for the provenance stamp — pass it to `writeTrialList` (below). The
+  table itself is a session resource; the assistant is told its name and shape in
+  the session context and must **not** transcribe its values — this function reads
+  it. Which table (if any) is available is a session fact, like the profile
+  targets.
+- `tapping.drawTableRows(T, n, replace)` — draw `n` whole rows from a table `T`,
+  returning an `n × C` matrix in draw order. `replace` (default true) is a
+  *property of the draw*; `replace = false` gives `n` **distinct** rows (errors if
+  `n` exceeds the table's row count). Seeded like every draw — `rng(seed)` first.
+  A drawn row is **role-agnostic**: the *generator* decides whether the result
+  feeds the pacer or the distractor. Composition stays in the generator — one row
+  played once (`t.PacerIntervals = row`), one row tiled (`tilePattern(row, n)`),
+  or `N` rows concatenated (`reshape(rows.', 1, [])`).
 
 ### Trial construction
 
@@ -296,10 +326,13 @@ functions as `tapping.<name>(...)`.
 
 ### Output, gate, inspection
 
-- `tapping.writeTrialList(trials, name, seed [, folder])` — encode and write
-  `Tapping.<name>.json`. Owns the filename contract, the provenance stamp, and
-  the array-wrapping discipline, so **generators do not call `num2cell`** and
-  assign plain numeric vectors.
+- `tapping.writeTrialList(trials, name, seed [, folder] [, TableInfo=info])` —
+  encode and write `Tapping.<name>.json`. Owns the filename contract, the
+  provenance stamp, and the array-wrapping discipline, so **generators do not call
+  `num2cell`** and assign plain numeric vectors. When a generator drew from an
+  interval table, pass the `info` from `loadIntervalTable` as `TableInfo=info`; it
+  is stamped into provenance so the record is reproducible against the exact table
+  drawn from (same seed on a changed table is a different draw).
 - `tapping.validateTrialList(jsonPath)` — structural/sanity gate over a written
   file. Returns `report.ok` and prints every issue.
 - `tapping.previewList(src)` — run-scale table, one row per trial (order,
@@ -394,8 +427,9 @@ The HTS consumes only the *output vocabulary* — interval vectors, delays, a ro
 binding, profile values, an enable flag. It has no knowledge of how those numbers
 were produced. So a change is **free** (no HTS change, no plumbing) exactly when it
 can be expressed as *different numbers in the existing fields*: new pattern rules,
-new constraints, new distributions, jitter, balancing, ordering, silent tails, and
-new `Item` parameters all live entirely in the authoring layer.
+new constraints, new distributions, jitter, balancing, ordering, silent tails,
+draws from a curated interval table, and new `Item` parameters all live entirely
+in the authoring layer.
 
 **A reactive *trigger* is inside the boundary.** The tap-evoked pathway fires a
 sound *in response to* each tap, so its timing is decided at runtime — yet its

@@ -48,10 +48,19 @@ namespace TDP.Tapping   // rename to match your project
         public ProvenanceDto Provenance { get; set; }
     }
 
+    public sealed class TableStamp
+    {
+        public string Name { get; set; }
+        public int Rows { get; set; }
+        public int Cols { get; set; }
+        public string Hash { get; set; }
+    }
+
     public sealed class ProvenanceDto
     {
         public long Seed { get; set; }
         public string Timestamp { get; set; }
+        public TableStamp SourceTable { get; set; }
         public string Name { get; set; }
     }
 
@@ -86,6 +95,6 @@ namespace TDP.Tapping   // rename to match your project
 
         /// <summary>Build a replay list from an ordered set of trials (no provenance).</summary>
         public static string SerializeSubset(IEnumerable<TappingTrialDto> trials)
-            => Serialize(new TappingTrialListDto { Trials = new List<TappingTrialDto>(trials) });
+            => Serialize(new TappingTrialListDto { Trials = new List<TappingTrialDto>(trials)});
     }
 }

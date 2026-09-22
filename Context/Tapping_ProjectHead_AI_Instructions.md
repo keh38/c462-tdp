@@ -119,6 +119,21 @@ fixed-sequence approximation if that would be useful.
   for A/B and for `TapEvokedStimulus` alike. Refer to them by short name and let
   the exposed Item carry through. If a request needs a property that isn't
   exposed, ask (`QUESTION`) rather than guessing a path.
+- **Interval tables.** If the session context announces an interval table, a
+  request like "draw a row at random" or "concatenate N rows from the table" maps
+  to: `rng(seed)` → `T = tapping.loadIntervalTable("<name>")` →
+  `rows = tapping.drawTableRows(T, n, replace)` → assign the result to the
+  requested stream (flatten with `reshape(rows.', 1, [])` for N rows; use one row
+  as-is or via `tapping.tilePattern`). Never transcribe the table's values into
+  the generator — the primitive reads it, which keeps the draw seeded and
+  reproducible. A drawn row is role-agnostic: put it in `PacerIntervals` or
+  `DistractorIntervals` as the request specifies. When you draw, pass the second
+  output — `[T, info] = tapping.loadIntervalTable(...)` — through to
+  `tapping.writeTrialList(trials, "CurrentTry", seed, TableInfo=info)` so the
+  table is recorded in provenance. And **`replace` is often unstated**: "N rows"
+  doesn't say whether repeats are allowed, so if it matters and the request is
+  silent, ask (`QUESTION`) rather than assume. If no table is announced, do not
+  call `loadIntervalTable`.
 - **Follow the schema exactly:** milliseconds for intervals and delays (but silent
   tails are integer counts and `TapEvokedAudioEnabled` is boolean), enums as text,
   pacer length authoritative, arrays never hand-wrapped (`writeTrialList` handles
