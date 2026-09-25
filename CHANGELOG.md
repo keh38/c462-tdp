@@ -1,5 +1,13 @@
 # Changelog
 
+### v1.3 (2026-09-25)
+#### Added
+- tap detection settings
+#### Fixed
+- add tap-evoked audio properties to profile targets
+
+---
+
 ### v1.2 (2026-09-22)
 #### Added
 - ability to read intervals from table
