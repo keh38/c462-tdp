@@ -28,4 +28,10 @@ function t = newTrial()
     t.DistractorPattern = [];
 
     t.ParameterProfiles = repmat(tapping.makeProfile('', []), 0, 1);  % empty profile list
+
+    t.PacerSilentTail = 0;
+    t.DistractorSilentTail = 0;
+
+    t.TapEvokedAudioEnabled = false;
+    t.TapEvokedAudioDelay = 0;
 end

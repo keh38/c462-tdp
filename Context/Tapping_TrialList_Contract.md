@@ -149,6 +149,15 @@ the length of the trial — and, for now, it plays **throughout**, unaffected by
 `PacerSilentTail`/`DistractorSilentTail`: during a silent continuation tail the
 tap-evoked sound keeps responding, which is often exactly when it matters most.
 
+Its **onset can be delayed** with `TapEvokedAudioDelay` — an integer count of
+pacer stimuli. The pathway arms once that many pacer stimuli have been processed;
+until then, taps evoke nothing. This is counted on the pacer's *stimulus clock*,
+which keeps ticking through a silent tail, so a delay may deliberately land after
+the pacer has gone silent (feedback only during continuation). Like the tails, it
+is authored in *stimuli*, not repeats — "arm after the first K repeats" is
+`K × numel(PacerPattern)`. It defaults to 0 (armed from the first tap), and has no
+effect unless `TapEvokedAudioEnabled` is true.
+
 The tap-evoked sound's properties — including its **delay** (the gap from tap to
 sound) — are ordinary stimulus properties of `TapEvokedStimulus`. Set a property
 to a fixed value for a constant setting, or vary it tap-by-tap with a
@@ -234,6 +243,7 @@ ignores unknown fields, so it is safe to include and is written automatically.
 | `DistractorPattern` | number[] | ms | **May be empty.** Empty when the distractor is *absent*, or present but *non-repeating*. If present, the repeating **unit** `DistractorIntervals` was tiled from; every value finite and > 0. "Absent" vs "present, non-repeating" is told by `DistractorIntervals`, not by this field. |
 | `DistractorSilentTail` | integer | count | **≥ 0; default 0.** Number of trailing distractor intervals emitted silently (after looping/truncation to the pacer). Independent of `PacerSilentTail` — lets the distractor stop before, or carry on after, the pacer. `0` = fully audible. |
 | `TapEvokedAudioEnabled` | boolean | — | Default **false**. When true, the tap-evoked pathway plays a sound in response to each tap, using `TapEvokedStimulus` (configured in Elements, like A/B). Its properties — including delay — are set or varied by `ParameterProfiles` whose `Item` targets `TapEvokedStimulus`. Plays throughout the trial, unaffected by the silent tails. |
+| `TapEvokedAudioDelay` | integer | count | **≥ 0; default 0.** Number of pacer stimuli to play before the tap-evoked pathway arms: once the Nth pacer stimulus has been processed, the next (and every later) tap evokes audio. `0` = armed from the first tap. A count of pacer *stimuli*, not repeats — convert a "first K repeats" request to `K × numel(PacerPattern)` (see §1). It counts the pacer's stimulus clock, which keeps ticking through a silent tail, so a delay may legitimately land after the pacer falls silent. No effect when `TapEvokedAudioEnabled` is false — and a nonzero delay with the feature off is a **validation error** (a probable authoring mistake), not silently ignored. |
 | `ParameterProfiles` | ParameterProfile[] | — | May be empty. Each varies one parameter across a stream's presentations — **per element** for an A/B stimulus, **per tap** for `TapEvokedStimulus`. Routing is by `Item` (see §1). |
 
 ### ParameterProfile
@@ -319,7 +329,8 @@ functions as `tapping.<name>(...)`.
 
 - `tapping.newTrial()` — a blank trial struct with every field defaulted
   (mirrors the C# constructor). Both pattern fields default to empty; both
-  silent-tail fields default to 0; `TapEvokedAudioEnabled` defaults to false.
+  silent-tail fields default to 0; `TapEvokedAudioEnabled` defaults to false and
+  `TapEvokedAudioDelay` to 0.
 - `tapping.makeProfile(item, values)` — one ParameterProfile. For no parameter profile, 
   assign an empty array — `t.ParameterProfiles = []` — never tapping.makeProfile.empty 
   or any other form.
@@ -400,7 +411,9 @@ legal, LeadIn ≥ 0, and so on. A non-empty pattern is checked like any interval
 vector (finite, > 0); an empty pattern is always legal — it *is* the
 non-repeating case. A silent-tail field is a non-negative integer not exceeding
 its stream's length (a tail equal to the full length is legal but silences the
-stream entirely — the preview shows it); `TapEvokedAudioEnabled` is a boolean. The
+stream entirely — the preview shows it); `TapEvokedAudioEnabled` is a boolean;
+`TapEvokedAudioDelay` is a non-negative integer, and a nonzero delay with
+`TapEvokedAudioEnabled` false is an **error** (a probable authoring mistake). The
 gate deliberately does **not** judge whether the experiment is the one you
 intended — a well-formed file that implements the wrong idea passes, and in
 particular it does not judge whether a unit tiles the way you meant. Run it on

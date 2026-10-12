@@ -173,6 +173,7 @@ namespace TapDevPlatform
             Col("Pacer", nameof(TrialRowVM.Pacer), 50);
             Col("Response", nameof(TrialRowVM.Response), 90);
             Col("Tap-evoked", nameof(TrialRowVM.TapEvoked), 90);
+            Col("Delay", nameof(TrialRowVM.TapEvokedDelay), 90);
             Col("Pacer iv", nameof(TrialRowVM.PacerSummary), 100);
             Col("Distractor", nameof(TrialRowVM.DistractorSummary), 110);
             Col("LeadIn", nameof(TrialRowVM.LeadIn), 60);

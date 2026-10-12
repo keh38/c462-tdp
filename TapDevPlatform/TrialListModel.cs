@@ -31,6 +31,7 @@ namespace TDP.Tapping   // rename to match your project
         public int PacerSilentTail { get; set; }
         public int DistractorSilentTail { get; set; }
         public bool TapEvokedAudioEnabled { get; set; }
+        public int TapEvokedAudioDelay { get; set; }
     }
 
     public sealed class ParameterProfileDto

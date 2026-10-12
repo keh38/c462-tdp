@@ -47,6 +47,7 @@ namespace TDP.Sessions   // rename to match your project
         public string Pacer => T.Pacer;
         public string Response => T.ResponseInstructions;
         public string TapEvoked => T.TapEvokedAudioEnabled ? "\u2713" : "";
+        public string TapEvokedDelay => T.TapEvokedAudioEnabled ? T.TapEvokedAudioDelay.ToString() : "\u2014";
         public string PacerSummary => SummariseStream(T.PacerIntervals, T.PacerPattern);
         public string DistractorSummary
         {

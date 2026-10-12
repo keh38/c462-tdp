@@ -114,6 +114,15 @@ fixed-sequence approximation if that would be useful.
   values in the profile — generate them (e.g. from a distribution) with your
   seeded `rng`. The delay is not a special field; it is one property of the
   tap-evoked stimulus, authored like any other.
+- **Delaying tap-evoked onset.** To hold the tap-evoked audio off until the
+  subject has heard some of the pacer first, set `TapEvokedAudioDelay` — an
+  **integer count of pacer stimuli** to play before the pathway arms (the next tap
+  after that stimulus is the first to evoke sound). A "don't start until after the
+  first K repeats" request is `K × numel(PacerPattern)`; it's a stimulus count, not
+  a time or a repeat count. It counts the pacer's stimulus clock (which keeps
+  ticking through a silent tail), defaults to 0 (armed from the first tap), and has
+  no effect — and is a **validation error** — unless `TapEvokedAudioEnabled` is
+  true, so only set it alongside the enable.
 - **Use only the exposed profile targets; never invent an `Item`.** The session
   context lists the stimulus properties available to profile (short name → Item),
   for A/B and for `TapEvokedStimulus` alike. Refer to them by short name and let
