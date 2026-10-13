@@ -1,6 +1,6 @@
 # Changelog
 
-### v1.4 (unreleased)
+### v1.4 (2026-10-13)
 #### Added
 - delay to activation of tap-evoked audio
 
