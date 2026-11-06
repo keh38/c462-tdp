@@ -34,4 +34,10 @@ function t = newTrial()
 
     t.TapEvokedAudioEnabled = false;
     t.TapEvokedAudioDelay = 0;
+
+    % Drift record per stream: the second output of tapping.driftRandomWalk /
+    % driftMultisine / driftHoldRamp, assigned as a pair with the intervals.
+    % Empty = the stream is not drifted (writeTrialList then omits the field).
+    t.PacerDrift      = [];
+    t.DistractorDrift = [];
 end

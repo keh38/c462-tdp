@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Tapping;
 
 namespace TDP.Tapping   // rename to match your project
 {
@@ -32,6 +33,11 @@ namespace TDP.Tapping   // rename to match your project
         public int DistractorSilentTail { get; set; }
         public bool TapEvokedAudioEnabled { get; set; }
         public int TapEvokedAudioDelay { get; set; }
+
+        // Optional (Contract §2): absent when the stream is not drifted, so null here
+        // and omitted on write (the codec writes no nulls).
+        public DriftRecord PacerDrift { get; set; }
+        public DriftRecord DistractorDrift { get; set; }
     }
 
     public sealed class ParameterProfileDto
@@ -60,6 +66,7 @@ namespace TDP.Tapping   // rename to match your project
     public sealed class ProvenanceDto
     {
         public long Seed { get; set; }
+        [JsonPropertyName("Created")]       // writeTrialList stamps "Created", not "Timestamp"
         public string Timestamp { get; set; }
         public TableStamp SourceTable { get; set; }
         public string Name { get; set; }
@@ -82,8 +89,12 @@ namespace TDP.Tapping   // rename to match your project
             PropertyNamingPolicy = null,     // keep PascalCase — matches the schema
             WriteIndented = false,
             // Enums are already modelled as strings on the DTOs, so no converter is
-            // needed; every array field is a real array, never omitted.
-            DefaultIgnoreCondition = JsonIgnoreCondition.Never
+            // needed. Nulls are not written: optional objects (PacerDrift,
+            // DistractorDrift, Provenance) and the members of a DriftRecord that do
+            // not apply to its method are omitted, as the contract requires. Every
+            // array field is initialised to an empty array, so arrays are never null
+            // and are always written - an empty pattern still goes out as [].
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
         /// <summary>Parse a validated trial-list JSON string into typed trials.</summary>

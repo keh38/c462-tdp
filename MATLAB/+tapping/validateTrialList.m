@@ -10,6 +10,12 @@ function report = validateTrialList(jsonPath)
 %     report.warnings  cellstr (reserved; this gate is errors-only by design)
 %     report.nTrials
 %
+%   Drift records (PacerDrift / DistractorDrift, optional): when present, the
+%   record must describe its stream - known Method, empty Pattern field, the
+%   first SteadyIntervals intervals equal to BaseInterval, every interval inside
+%   the record's RangeFrac bound, and (HoldRamp) ordered ramp indices within the
+%   stream. Parameter values outside the suggested ranges are NOT errors.
+%
 %   This gate is errors-only on purpose. "Valid but perhaps unintended" cases
 %   (e.g. a distractor loop that rotates against the pacer) are NOT malformity -
 %   there is nothing to fail on - so they belong to the preview, not here.
@@ -63,6 +69,20 @@ function report = validateTrialList(jsonPath)
             errors = [errors, checkIntervals(dis, who, 'DistractorIntervals')]; %#ok<AGROW>
         end
 
+        % --- drift records: describe their stream exactly (see checkDrift)
+        if hasDrift(t, 'PacerDrift')
+            errors = [errors, checkDrift(t.PacerDrift, pac, getNum(t, 'PacerPattern'), ...
+                                         who, 'PacerDrift', 'PacerPattern')]; %#ok<AGROW>
+        end
+        if hasDrift(t, 'DistractorDrift')
+            if isempty(dis)
+                errors{end+1} = sprintf('%s: DistractorDrift is present but there is no distractor', who); %#ok<AGROW>
+            else
+                errors = [errors, checkDrift(t.DistractorDrift, dis, getNum(t, 'DistractorPattern'), ...
+                                             who, 'DistractorDrift', 'DistractorPattern')]; %#ok<AGROW>
+            end
+        end
+
         % --- LeadIn / Offset: finite; LeadIn >= 0; distractor not before t=0
         li = getScalar(t, 'LeadIn', 0);
         of = getScalar(t, 'Offset', 0);
@@ -112,6 +132,88 @@ end
 
 
 % ==== local plumbing (private to this gate) ==============================
+
+function tf = hasDrift(t, f)
+% A drift field is optional: absent, null ([] after jsondecode) or empty = none.
+    tf = isstruct(t) && isfield(t, f) && ~isempty(t.(f));
+end
+
+function errs = checkDrift(d, iv, pat, who, name, patName)
+% A drift record must be consistent with the interval vector it describes. These
+% are malformity checks (a record that contradicts its stream), not judgments of
+% the design: parameter values outside the suggested ranges are legal.
+    errs = {};
+    if iscell(d), d = d{1}; end
+    if ~isstruct(d)
+        errs{end+1} = sprintf('%s: %s is not an object', who, name);
+        return
+    end
+    methods = {'RandomWalk', 'Multisine', 'HoldRamp'};
+    m = char(string(getField(d, 'Method', '')));
+    if ~any(strcmp(m, methods))
+        errs{end+1} = sprintf('%s: %s.Method = "%s" is not in {RandomWalk, Multisine, HoldRamp}', who, name, m);
+    end
+
+    % a drifted stream never repeats: drift primitives do not tile
+    if ~isempty(pat)
+        errs{end+1} = sprintf('%s: %s is present, so %s must be empty (a drifted stream does not repeat)', ...
+                              who, name, patName);
+    end
+
+    base = getScalar(d, 'BaseInterval', NaN);
+    if ~isfinite(base) || base <= 0
+        errs{end+1} = sprintf('%s: %s.BaseInterval must be finite and > 0', who, name);
+        return
+    end
+
+    % the steady lead-in is exactly the base interval, and leaves room to drift
+    ns = getScalar(d, 'SteadyIntervals', NaN);
+    if ~isfinite(ns) || ns < 0 || ns ~= floor(ns)
+        errs{end+1} = sprintf('%s: %s.SteadyIntervals must be a non-negative integer', who, name);
+    elseif ns >= numel(iv)
+        errs{end+1} = sprintf('%s: %s.SteadyIntervals (%d) leaves no drifting intervals (stream has %d)', ...
+                              who, name, ns, numel(iv));
+    else
+        off = find(abs(iv(1:ns) - base) > 1e-6 * base);
+        if ~isempty(off)
+            errs{end+1} = sprintf('%s: %s.SteadyIntervals = %d, but interval(s) %s differ from BaseInterval %g ms', ...
+                                  who, name, ns, mat2str(off), base);
+        end
+    end
+
+    % every interval within the record's bound
+    params = getField(d, 'Params', struct());
+    r = getScalar(params, 'RangeFrac', NaN);
+    if isfinite(r) && r > 0
+        lo = base / (1 + r);  hi = base * (1 + r);  tol = 1e-9 * base;
+        out = find(iv < lo - tol | iv > hi + tol);
+        if ~isempty(out)
+            errs{end+1} = sprintf('%s: %s bound [%.1f, %.1f] ms (RangeFrac %g) exceeded at interval(s) %s', ...
+                                  who, name, lo, hi, r, mat2str(out));
+        end
+    end
+
+    % hold-and-ramp: ramp events index into the stream, in order, after the lead-in
+    if strcmp(m, 'HoldRamp')
+        R = asCellOfStructs(getField(d, 'Ramps', {}));
+        lastEnd = 0;
+        if isfinite(ns), lastEnd = ns; end
+        for i = 1:numel(R)
+            s = getScalar(R{i}, 'Start', NaN);  e = getScalar(R{i}, 'End', NaN);
+            dirn = char(string(getField(R{i}, 'Direction', '')));
+            rwho = sprintf('%s: %s ramp %d', who, name, i);
+            if ~all(isfinite([s e])) || s ~= floor(s) || e ~= floor(e) || s > e || s <= lastEnd || e > numel(iv)
+                errs{end+1} = sprintf('%s: Start/End (%g, %g) are not ordered indices within %d..%d', ...
+                                      rwho, s, e, lastEnd + 1, numel(iv)); %#ok<AGROW>
+            else
+                lastEnd = e;
+            end
+            if ~any(strcmp(dirn, {'Faster', 'Slower'}))
+                errs{end+1} = sprintf('%s: Direction = "%s" is not in {Faster, Slower}', rwho, dirn); %#ok<AGROW>
+            end
+        end
+    end
+end
 
 function errs = checkIntervals(v, who, name)
     errs = {};

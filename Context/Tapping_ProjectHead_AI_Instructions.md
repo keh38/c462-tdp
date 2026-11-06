@@ -40,7 +40,7 @@ The generator must:
 
 ```
 GENERATOR
-%% Drifting distractor: 470 ms distractor against a 500 ms pacer, 3 trials
+%% Phase-sliding distractor: 470 ms distractor against a 500 ms pacer, 3 trials
 seed = 12; rng(seed);
 ...
 tapping.writeTrialList(trials, "CurrentTry", seed);
@@ -55,7 +55,7 @@ build.
 
 ```
 QUESTION
-How fast should the distractor drift, and over how many trials?
+How fast should the distractor slide against the pacer, and over how many trials?
 ```
 
 ### `CANNOT`
@@ -73,7 +73,8 @@ taps is **not** `CANNOT` — that is the tap-evoked pathway, and you build it wi
 *value computed from a response* is `CANNOT`: an interval, level, or delay that
 depends on *how* the subject tapped. If the reactive part is just the **trigger**
 and every value is **pre-drawn**, it is expressible; if a **value must depend on
-the response**, it is not.
+the response**, it is not. A drifting pacer is pre-drawn and expressible; a pacer
+that drifts *toward the subject's tempo* is closed-loop and is `CANNOT`.
 
 ```
 CANNOT
@@ -123,6 +124,53 @@ fixed-sequence approximation if that would be useful.
   ticking through a silent tail), defaults to 0 (armed from the first tap), and has
   no effect — and is a **validation error** — unless `TapEvokedAudioEnabled` is
   true, so only set it alongside the enable.
+- **Drifting pacers (or distractors).** A request for a drifting / wandering /
+  tempo-varying pacer maps to one of three primitives (Contract §1 *Drifting
+  streams*, §3 *Drift primitives*): random walk → `tapping.driftRandomWalk`, sum of
+  sines → `tapping.driftMultisine`, plateau/hold-and-ramp →
+  `tapping.driftHoldRamp`.
+  - **Three things are required; ask for any that is missing** (`QUESTION`): the
+    **method**, the **base interval in ms**, and the **length** — a duration
+    (`DurationMs`) or an interval count (`Intervals`). Everything here is in
+    intervals: if the request gives a tempo (e.g. in BPM), ask for the base
+    interval in ms rather than converting.
+  - **Every other parameter defaults** to the Contract §3 table. In the header
+    comment, list the method, base interval, length, and **every** parameter value
+    used — defaults included, marked as defaults — so the generator states its
+    whole design.
+  - **Confirm values outside the suggested ranges** (`QUESTION`) before building,
+    unless the request already says they are deliberate (e.g. a training or
+    change-detection trial rather than one for model fitting). In particular:
+    `RampFrac` above 0.02, any `Freqs` value at or above 0.5 (illegal — the
+    primitive errors), `RangeFrac` above 0.15.
+  - **The length includes the steady lead-in.** "Drift for 30 seconds" is
+    `DurationMs=30000` with the default 8 steady intervals at its start; say so in
+    the header. If the request asks for the lead-in to be different or absent,
+    set `SteadyIntervals`. Do not confuse it with the trial's `LeadIn` field
+    (distractor-only, ms).
+  - **Assign the pair, and leave the vector alone:**
+    `[t.PacerIntervals, t.PacerDrift] = tapping.driftRandomWalk(...)` (or
+    `t.DistractorIntervals, t.DistractorDrift` for a drifting distractor). Leave
+    the pattern field empty; never tile, splice, concatenate or rescale a drifted
+    vector, because its drift record describes it exactly. A request that needs
+    that (e.g. drift, then a return to steady) is a new need — a new local
+    function — not an edit of the drawn vector.
+  - **Frozen sequences.** When the same drifted pacer should be heard under
+    several conditions (so the comparison is paired), draw it once and copy both
+    `PacerIntervals` and `PacerDrift` into each trial; draw several such sequences
+    if the request wants more than one.
+  - **Keep the base interval constant within a trial**; vary it across trials or
+    conditions.
+  - **Hold-and-ramp has no cap on holds.** If a request asks for a maximum hold,
+    that needs a new local function; note in the header that a cap makes ramp
+    onsets more predictable.
+  - **`driftMultisine` out-of-bounds error.** If the tool reports
+    `tapping:driftMultisine:outOfBounds` and the request left `RmsFrac` and
+    `RangeFrac` at their defaults, respond with a corrected `GENERATOR` using a
+    different seed (and say so in the header). If the request set either value,
+    ask (`QUESTION`) which to change.
+  - Silent tails, tap-evoked audio and profiles compose with a drifted pacer as
+    usual.
 - **Use only the exposed profile targets; never invent an `Item`.** The session
   context lists the stimulus properties available to profile (short name → Item),
   for A/B and for `TapEvokedStimulus` alike. Refer to them by short name and let
@@ -144,9 +192,10 @@ fixed-sequence approximation if that would be useful.
   silent, ask (`QUESTION`) rather than assume. If no table is announced, do not
   call `loadIntervalTable`.
 - **Follow the schema exactly:** milliseconds for intervals and delays (but silent
-  tails are integer counts and `TapEvokedAudioEnabled` is boolean), enums as text,
-  pacer length authoritative, arrays never hand-wrapped (`writeTrialList` handles
-  that).
+  tails and `SteadyIntervals` are integer counts, drift `*Frac` parameters are
+  fractions of the base interval, and `TapEvokedAudioEnabled` is boolean), enums
+  as text, pacer length authoritative, arrays never hand-wrapped (`writeTrialList`
+  handles that).
 
 ## When the tool reports a failure
 

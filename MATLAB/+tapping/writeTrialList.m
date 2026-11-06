@@ -26,8 +26,14 @@ function outFile = writeTrialList(trials, name, seed, folder, options)
 %     1. the Tapping.<name>.json filename convention,
 %     2. the provenance stamp,
 %     3. the num2cell wrapping that stops length-1 arrays from collapsing to
-%        JSON scalars (PacerIntervals, DistractorIntervals, each profile's
-%        Values) and keeps the trial list a JSON array.
+%        JSON scalars (PacerIntervals, DistractorIntervals, both Pattern
+%        fields, each profile's Values, and the arrays inside a drift record)
+%        and keeps the trial list a JSON array.
+%
+%   Drift records: an empty PacerDrift / DistractorDrift (the newTrial default)
+%   is OMITTED from the JSON, so a non-drifted stream reads as null/absent on the
+%   C# side. A present record is written as an object; its Ramps list is always
+%   a JSON array (even with 0 or 1 ramps).
     arguments
         trials
         name
@@ -76,6 +82,11 @@ function t = normalizeTrial(t)
 % arrays. Scalars (LeadIn, Offset) and enum strings are left untouched.
     t.PacerIntervals      = asCellArray(t.PacerIntervals);
     t.DistractorIntervals = asCellArray(t.DistractorIntervals);
+    if isfield(t, 'PacerPattern'),      t.PacerPattern      = asCellArray(t.PacerPattern);      end
+    if isfield(t, 'DistractorPattern'), t.DistractorPattern = asCellArray(t.DistractorPattern); end
+
+    t = normalizeDrift(t, 'PacerDrift');
+    t = normalizeDrift(t, 'DistractorDrift');
 
     pp = t.ParameterProfiles;
     if ~isempty(pp)
@@ -85,6 +96,32 @@ function t = normalizeTrial(t)
         end
         t.ParameterProfiles = pp;
     end
+end
+
+function t = normalizeDrift(t, f)
+% Omit an empty drift record; otherwise wrap its array-valued members so they
+% survive as JSON arrays (Freqs and Phases for Multisine, Ramps for HoldRamp).
+    if ~isfield(t, f), return; end
+    d = t.(f);
+    if isempty(d)
+        t = rmfield(t, f);
+        return
+    end
+    if isfield(d, 'Params') && isfield(d.Params, 'Freqs')
+        d.Params.Freqs = asCellArray(d.Params.Freqs);
+    end
+    if isfield(d, 'Phases')
+        d.Phases = asCellArray(d.Phases);
+    end
+    if isfield(d, 'Ramps')
+        r = d.Ramps;
+        if isempty(r)
+            d.Ramps = {};
+        elseif isstruct(r)
+            d.Ramps = num2cell(r(:)');
+        end
+    end
+    t.(f) = d;
 end
 
 function c = asCellArray(x)

@@ -16,6 +16,11 @@ function fig = previewTrial(trial)
 %        distractor lane shows its pre-delay decomposed into LeadIn (shared
 %        with the pacer) and Offset (the distractor's additional phase).
 %     2  Pacer interval (ms) vs element index - flat line + scatter = jitter.
+%        For a drifted pacer (PacerDrift present) the panel also shades the
+%        steady lead-in (grey) and each hold-and-ramp ramp (amber), draws the
+%        RangeFrac bound (dotted) and base interval (dashed), and the title
+%        summarises the drift (method, base, bound hits / ramp count).
+%     (+) Distractor interval panel, only when DistractorDrift is present.
 %     3+ One panel per ParameterProfile, values looped over elements (index).
 %
 %   NOTE: the top panel is time-space; panels 2+ are index-space, so only the
@@ -28,6 +33,8 @@ leadIn  = double(getField(trial, 'LeadIn', 0));
 offset  = double(getField(trial, 'Offset', 0));
 tag     = char(string(getField(trial, 'Tag', '')));
 profiles = asProfileList(getField(trial, 'ParameterProfiles', {}));
+pDrift  = asDrift(getField(trial, 'PacerDrift', []));
+dDrift  = asDrift(getField(trial, 'DistractorDrift', []));
 
 N = numel(pacerIv);
 if N < 1
@@ -71,7 +78,7 @@ end
 
 % ---- draw ----------------------------------------------------------------
 fig = figure('Color', 'w');
-nTiles = 2 + numel(profiles);
+nTiles = 2 + ~isempty(dDrift) + numel(profiles);
 tl = tiledlayout(fig, nTiles, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
 if ~isempty(tag)
     title(tl, tag, 'Interpreter', 'none', 'FontWeight', 'normal');
@@ -113,12 +120,32 @@ hold(ax, 'off');
 
 % ---- Panel 2: pacer interval values (the jitter view, index-space) ------
 ax = nexttile(tl); idxAxes(1) = ax; hold(ax, 'on');
+ttl = 'pacer interval (ms)';
+if ~isempty(pDrift)                     % drift: lead-in, ramps, bounds, base line
+    ttl = sprintf('%s - %s', ttl, driftOverlay(ax, pDrift, pacerIv));
+end
 plot(ax, 1:N, pacerIv, '-o', 'Color', cPacer, ...
      'MarkerFaceColor', cPacer, 'MarkerSize', 4, 'LineWidth', 1);
-yline(ax, mean(pacerIv), '--', 'Color', [cPacer 0.6]);
+if isempty(pDrift)
+    yline(ax, mean(pacerIv), '--', 'Color', [cPacer 0.6]);
+end
 ylabel(ax, 'ms');
-title(ax, 'pacer interval (ms)', 'FontWeight', 'normal');
+title(ax, ttl, 'FontWeight', 'normal', 'Interpreter', 'none');
 hold(ax, 'off');
+
+% ---- Drifted distractor: its own interval panel (its own element index) --
+if ~isempty(dDrift)
+    ax = nexttile(tl); hold(ax, 'on');
+    nD = numel(distIv);
+    ttl = sprintf('distractor interval (ms) - %s', driftOverlay(ax, dDrift, distIv));
+    plot(ax, 1:nD, distIv, '-o', 'Color', cDist, ...
+         'MarkerFaceColor', cDist, 'MarkerSize', 4, 'LineWidth', 1);
+    xlim(ax, [0.5 nD + 0.5]);
+    xlabel(ax, 'distractor element index (before looping)');
+    ylabel(ax, 'ms');
+    title(ax, ttl, 'FontWeight', 'normal', 'Interpreter', 'none');
+    hold(ax, 'off');
+end
 
 % ---- Panels 3+: parameter profiles (index-space) ------------------------
 for p = 1:numel(profiles)
@@ -146,6 +173,72 @@ end
 
 
 % ==== local helpers ======================================================
+
+function s = driftOverlay(ax, d, iv)
+% Underlay for a drifted stream's interval panel: the steady lead-in (grey),
+% each hold-and-ramp ramp (amber), the bound (dotted) and the base interval
+% (dashed). Returns a one-line summary of the drift for the panel title.
+    cLead = [0.60 0.60 0.60];  cRamp = [0.90 0.70 0.25];  cBnd = [0.45 0.45 0.45];
+    n      = numel(iv);
+    base   = double(getField(d, 'BaseInterval', mean(iv)));
+    steady = double(getField(d, 'SteadyIntervals', 0));
+    params = getField(d, 'Params', struct());
+    r      = double(getField(params, 'RangeFrac', NaN));
+
+    yl = [min(iv) max(iv)];
+    if isfinite(r), yl = [min(yl(1), base/(1+r)) max(yl(2), base*(1+r))]; end
+    pad = 0.05 * max(diff(yl), eps);  ylo = yl(1) - pad;  yhi = yl(2) + pad;
+
+    if steady > 0
+        drawSpan(ax, 0.5, steady + 0.5, ylo, yhi, cLead, 0.18);
+    end
+    ramps = asStructList(getField(d, 'Ramps', {}));
+    for i = 1:numel(ramps)
+        drawSpan(ax, double(ramps{i}.Start) - 0.5, double(ramps{i}.End) + 0.5, ...
+                 ylo, yhi, cRamp, 0.22);
+    end
+    if isfinite(r)
+        yline(ax, base/(1+r), ':', 'Color', cBnd);
+        yline(ax, base*(1+r), ':', 'Color', cBnd);
+    end
+    yline(ax, base, '--', 'Color', cBnd);
+    ylim(ax, [ylo yhi]);
+
+    m = char(string(getField(d, 'Method', '?')));
+    switch m
+        case 'RandomWalk'
+            detail = sprintf('step %g, rho %g, %d bound hit(s)', ...
+                             getField(params, 'StepFrac', NaN), getField(params, 'Rho', NaN), ...
+                             double(getField(d, 'BoundHits', 0)));
+        case 'Multisine'
+            detail = sprintf('rms %g, %d freq(s)', getField(params, 'RmsFrac', NaN), ...
+                             numel(getField(params, 'Freqs', [])));
+        case 'HoldRamp'
+            nTrunc = sum(cellfun(@(x) logical(getField(x, 'Truncated', false)), ramps));
+            detail = sprintf('%d ramp(s)%s', numel(ramps), ...
+                             repmat(', last truncated', 1, double(nTrunc > 0)));
+        otherwise
+            detail = '';
+    end
+    s = sprintf('%s (base %g ms, steady %d, %s, %d intervals)', m, base, steady, detail, n);
+end
+
+function D = asDrift(x)
+% jsondecode gives a struct for a drift object, [] for null/absent.
+    D = [];
+    if iscell(x) && ~isempty(x), x = x{1}; end
+    if isstruct(x) && ~isempty(x), D = x(1); end
+end
+
+function L = asStructList(x)
+    L = {};
+    if isempty(x), return; end
+    if iscell(x)
+        L = x(:)';
+    elseif isstruct(x)
+        L = arrayfun(@(s) s, x(:)', 'UniformOutput', false);
+    end
+end
 
 function plotTicks(ax, x, yc, h, c)
 % Vertical ticks at each x centred on yc, half-height h, as ONE line object.

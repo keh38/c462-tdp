@@ -203,6 +203,64 @@ Because the drawn numbers land in `PacerIntervals`/`DistractorIntervals` like an
 others, a table adds a *source*, not new trial structure: it composes with tiling
 (a drawn row can be the repeating unit) and with everything else unchanged.
 
+### Drifting streams (`PacerDrift`, `DistractorDrift`)
+
+A **drifting** stream is one whose interval keeps changing through the trial. Its
+purpose is to make the pacer worth attending to: a constant interval, once
+learned, can be held from an internal timekeeper alone, while a drifting one
+cannot. Three drift methods are available, each a `+tapping` primitive (§3):
+
+- **random walk** — the interval changes a little, unpredictably, on every
+  element, and is pulled back toward the base interval over time;
+- **sum of sines** (multisine) — the interval is modulated by several slow
+  sinusoids with random phases;
+- **hold-and-ramp** — plateaus of constant interval joined by steady ramps to
+  random targets; ramp onsets are unpredictable (constant hazard).
+
+A drifted stream is still **just intervals**: the realized sequence lands in
+`PacerIntervals` (or `DistractorIntervals`) like any other, everything is
+pre-computed, and it is well inside the boundary (§5). It has no repeating unit,
+so its pattern field stays **empty** — a drifted stream does not repeat.
+
+The drift primitives share these conventions:
+
+- **Base interval, in ms.** Each stream drifts around a base interval. Every
+  parameter is either a **fraction of the base interval** (`StepFrac`,
+  `RangeFrac`, ...) or a **count of intervals** (`SteadyIntervals`, `HoldMin`,
+  ...) — never a tempo. Frequencies are in **cycles per interval**.
+- **Steady lead-in.** Each stream opens with `SteadyIntervals` intervals (default
+  **8**) exactly equal to the base interval, then drifts, starting from the base
+  interval so there is no jump at the switch. This is *not* the trial's `LeadIn`
+  field, which is a distractor-only delay in ms.
+- **Length.** Exactly one of `Intervals` (the total interval count) or
+  `DurationMs` (generate until the cumulative duration reaches or passes the
+  target; the count is an output, as in `drawToDuration`). Both measure the whole
+  stream, **steady lead-in included**.
+- **Bounds.** Every interval lies within
+  `[base / (1 + RangeFrac), base × (1 + RangeFrac)]`. Random walk enforces this by
+  reflecting at the bounds; hold-and-ramp stays inside by construction;
+  sum-of-sines checks the realized sequence and **errors** if it leaves the bounds
+  (rather than distorting the sinusoids).
+
+Each primitive returns, with the intervals, a **drift record**: the method, its
+parameters, and what cannot be recovered from the intervals afterward — how often
+a random walk was reflected, the random phases of a multisine, and where each
+hold-and-ramp ramp starts and ends. It is written into `PacerDrift` (or
+`DistractorDrift`) and assigned **as a pair** with the intervals, the same
+discipline as `tilePattern`'s pattern:
+
+```matlab
+[t.PacerIntervals, t.PacerDrift] = tapping.driftHoldRamp(500, DurationMs=30000);
+```
+
+The record describes its interval vector **exactly**, so the vector is not edited
+after drawing — not spliced, tiled, concatenated or rescaled. Using the same
+drifted sequence in several trials (frozen sequences, so distractor conditions are
+compared on the same pacer) means drawing it once and copying **both** fields.
+A drifted distractor works the same way; its record describes the distractor
+vector as authored, before looping. A silent tail composes as usual (it counts
+the flattened intervals).
+
 ### Run order
 
 Trials play in the order they appear in the list. **List position is playback
@@ -239,9 +297,11 @@ ignores unknown fields, so it is safe to include and is written automatically.
 | `PacerIntervals` | number[] | ms | **Non-empty.** Every value finite and > 0. Length is **authoritative** — it defines the trial. |
 | `PacerPattern` | number[] | ms | **May be empty.** Empty = the pacer does not repeat (its period is the `PacerIntervals` length). If present, it is the repeating **unit** `PacerIntervals` was tiled from; every value finite and > 0. Set only by tiling — it is *never* a copy or re-measurement of the flattened `PacerIntervals`. |
 | `PacerSilentTail` | integer | count | **≥ 0; default 0.** Number of *trailing* pacer intervals emitted **silently**. The clock still runs through them, so trial length is unchanged — the pacer just stops sounding early (a continuation trial). Counts the *flattened* intervals. `0` = fully audible. |
+| `PacerDrift` | DriftRecord, or absent | — | **Optional; absent by default.** Present only when the pacer was produced by a drift primitive; describes `PacerIntervals` exactly (see *DriftRecord*). When present, `PacerPattern` must be empty. |
 | `DistractorIntervals` | number[] | ms | May be empty (a pacer-only trial). If present, every value finite and > 0. Loops over the pacer; length is free. |
 | `DistractorPattern` | number[] | ms | **May be empty.** Empty when the distractor is *absent*, or present but *non-repeating*. If present, the repeating **unit** `DistractorIntervals` was tiled from; every value finite and > 0. "Absent" vs "present, non-repeating" is told by `DistractorIntervals`, not by this field. |
 | `DistractorSilentTail` | integer | count | **≥ 0; default 0.** Number of trailing distractor intervals emitted silently (after looping/truncation to the pacer). Independent of `PacerSilentTail` — lets the distractor stop before, or carry on after, the pacer. `0` = fully audible. |
+| `DistractorDrift` | DriftRecord, or absent | — | **Optional; absent by default.** As `PacerDrift`, for the distractor; describes `DistractorIntervals` as authored (before looping). Requires a non-empty `DistractorIntervals`; `DistractorPattern` must be empty. |
 | `TapEvokedAudioEnabled` | boolean | — | Default **false**. When true, the tap-evoked pathway plays a sound in response to each tap, using `TapEvokedStimulus` (configured in Elements, like A/B). Its properties — including delay — are set or varied by `ParameterProfiles` whose `Item` targets `TapEvokedStimulus`. Plays throughout the trial, unaffected by the silent tails. |
 | `TapEvokedAudioDelay` | integer | count | **≥ 0; default 0.** Number of pacer stimuli to play before the tap-evoked pathway arms: once the Nth pacer stimulus has been processed, the next (and every later) tap evokes audio. `0` = armed from the first tap. A count of pacer *stimuli*, not repeats — convert a "first K repeats" request to `K × numel(PacerPattern)` (see §1). It counts the pacer's stimulus clock, which keeps ticking through a silent tail, so a delay may legitimately land after the pacer falls silent. No effect when `TapEvokedAudioEnabled` is false — and a nonzero delay with the feature off is a **validation error** (a probable authoring mistake), not silently ignored. |
 | `ParameterProfiles` | ParameterProfile[] | — | May be empty. Each varies one parameter across a stream's presentations — **per element** for an A/B stimulus, **per tap** for `TapEvokedStimulus`. Routing is by `Item` (see §1). |
@@ -253,6 +313,38 @@ ignores unknown fields, so it is safe to include and is written automatically.
 | `Item` | string | Parameter path; it also identifies the **stimulus** it targets (A/B or `TapEvokedStimulus`), which sets the sequencing regime (per element vs per tap). **Controlled vocabulary is deferred** — see below. One known value is `Sound.Tone.Frequency_Hz`. |
 | `Values` | number[] | Non-empty, all finite. Successive per-presentation values, looped/broadcast over the elements (A/B) or taps (`TapEvokedStimulus`). `[1000 2000]` alternates; `[440]` broadcasts. Units are whatever the parameter uses (Hz for frequency, ms for a delay). |
 
+### DriftRecord
+
+Written by the drift primitives (§3); never authored by hand. The HTS does not
+need it to play the trial — it is the analysis record of how the stream was made.
+
+| Field | JSON type | Units | Rules |
+|---|---|---|---|
+| `Method` | string enum | — | `"RandomWalk"`, `"Multisine"` or `"HoldRamp"`. |
+| `BaseInterval` | number | ms | > 0. The interval the stream drifts around. |
+| `SteadyIntervals` | integer | count | ≥ 0 and less than the stream's length. The first `SteadyIntervals` intervals equal `BaseInterval` exactly. |
+| `Params` | object | — | The method's parameters as used, by name (below). Always includes `RangeFrac`; every interval lies within `[BaseInterval/(1+RangeFrac), BaseInterval×(1+RangeFrac)]`. |
+| `BoundHits` | integer | count | **RandomWalk only.** Number of intervals on which the walk (or its jitter) was reflected at a bound. |
+| `Phases` | number[] | radians | **Multisine only.** One random phase per entry of `Params.Freqs`, with the drift-interval index counted from 0 at the first interval after the steady lead-in. With `Params`, reconstructs the modulation exactly. |
+| `Ramps` | DriftRamp[] | — | **HoldRamp only.** Every ramp, in order; always an array (`[]` if the stream ended before the first ramp). |
+
+`Params` by method:
+
+| Method | Params fields |
+|---|---|
+| `RandomWalk` | `StepFrac`, `Rho`, `RangeFrac`, `JitterFrac` |
+| `Multisine` | `RmsFrac`, `Freqs` (number[], cycles per interval), `RangeFrac`, `FadeIntervals` |
+| `HoldRamp` | `RangeFrac`, `HoldMin`, `HoldExtraMean`, `RampFrac`, `MinStepFrac` |
+
+**DriftRamp**
+
+| Field | JSON type | Rules |
+|---|---|---|
+| `Start` | integer | **1-based** index into the stream's interval vector of the ramp's first interval. Greater than `SteadyIntervals` and than the previous ramp's `End`. |
+| `End` | integer | 1-based index of the ramp's last interval (the one that reaches the target); `Start ≤ End ≤` stream length. |
+| `Direction` | string enum | `"Faster"` (intervals shrink) or `"Slower"` (intervals grow). |
+| `Truncated` | boolean | true if the stream ended before the ramp reached its target (`End` is then the last interval). |
+
 ### Encoding rules
 
 - **Enums are text** (`"A"`, `"AllElements"`). The reader accepts integers too,
@@ -263,11 +355,19 @@ ignores unknown fields, so it is safe to include and is written automatically.
   pass silently — but do not rely on that.) This includes the pattern fields: an
   empty pattern is the empty array `[]`, and it must survive the wire as `[]`
   (not omitted, not `null`) — the empty-means-non-repeating convention rides on
-  that.
+  that. It also includes the arrays inside a drift record (`Freqs`, `Phases`,
+  `Ramps`).
+- **Drift records are omitted when absent.** A stream that is not drifted has no
+  `PacerDrift` / `DistractorDrift` key at all (not `[]`, not `{}`); a reader
+  treats a missing key as "not drifted" (null).
+- **Ramp indices are 1-based** (the MATLAB convention used throughout analysis).
+  A 0-based reader subtracts 1.
 - **Units are milliseconds** for every interval field (LeadIn, Offset, Pacer,
-  Distractor, and both Pattern fields). Profile `Values` use the parameter's own
-  units. **Not everything is ms:** the `*SilentTail` fields are integer *interval
-  counts*, and `TapEvokedAudioEnabled` is a boolean.
+  Distractor, and both Pattern fields) and for `BaseInterval`. Profile `Values`
+  use the parameter's own units. **Not everything is ms:** the `*SilentTail`
+  fields and `SteadyIntervals` are integer *interval counts*, the `*Frac` drift
+  parameters are fractions of the base interval, `Freqs` are cycles per interval,
+  and `TapEvokedAudioEnabled` is a boolean.
 - **Filename is `Tapping.<name>.json`** — capital-T `Tapping.` prefix. This is
   the HTS config-file naming contract; it is deliberately *not* the same as the
   lowercase `+tapping` MATLAB package name. Do not lowercase it.
@@ -289,7 +389,8 @@ not guess it.
 
 Build trial lists by **composing** the `+tapping` primitives. Add the folder
 *containing* `+tapping` to the MATLAB path (not `+tapping` itself), then call
-functions as `tapping.<name>(...)`.
+functions as `tapping.<name>(...)`. The package includes a `private` subfolder of
+shared helpers; it must be deployed with the package.
 
 ### Vector primitives — produce or transform interval vectors
 
@@ -325,12 +426,67 @@ functions as `tapping.<name>(...)`.
   played once (`t.PacerIntervals = row`), one row tiled (`tilePattern(row, n)`),
   or `N` rows concatenated (`reshape(rows.', 1, [])`).
 
+### Drift primitives — produce a drifting, non-repeating interval vector
+
+All three have the same shape:
+
+```matlab
+[iv, drift] = tapping.driftRandomWalk(baseInterval, Intervals=n,    ...params)
+[iv, drift] = tapping.driftMultisine (baseInterval, DurationMs=t,   ...params)
+[iv, drift] = tapping.driftHoldRamp  (baseInterval, Intervals=n,    ...params)
+```
+
+`baseInterval` is in ms. Give **exactly one** of `Intervals` / `DurationMs`; both
+count the steady lead-in (§1). `iv` is a row vector of intervals in ms and `drift`
+is the DriftRecord (§2). Assign them as a pair into the stream the request names —
+`[t.PacerIntervals, t.PacerDrift] = ...` or
+`[t.DistractorIntervals, t.DistractorDrift] = ...` — and leave the pattern field
+empty. Every parameter is a name-value argument with a default; the suggested
+ranges are where the linear phase/period-correction analysis behaves well, and a
+value outside them is legal but should be a deliberate choice.
+
+| Primitive | Parameter | Meaning | Default | Suggested range |
+|---|---|---|---|---|
+| all | `SteadyIntervals` | isochronous lead-in at the base interval, counted in the length | 8 | 8–10 |
+| `driftRandomWalk` | `StepFrac` | SD of each step, in log-interval (≈ fraction of base) | 0.02 | 0.01–0.025 |
+| | `Rho` | pull back toward the base; 1 = pure random walk; time constant ≈ 1/(1−Rho) intervals | 0.95 | 0.9–0.97 |
+| | `RangeFrac` | hard bound, ± fraction of base (walk reflected) | 0.15 | 0.10–0.15 |
+| | `JitterFrac` | independent jitter on each drift interval | 0 | 0–0.02 |
+| `driftMultisine` | `RmsFrac` | overall RMS modulation, fraction of base | 0.05 | 0.03–0.07 |
+| | `Freqs` | frequencies, cycles per interval, each < 0.5; non-harmonic | [0.021 0.043 0.087 0.17] | all < 0.5; > ~0.2 probe phase correction, slower probe period correction |
+| | `RangeFrac` | bound, ± fraction of base (checked; error if exceeded) | 0.15 | 0.10–0.15 |
+| | `FadeIntervals` | raised-cosine fade-in of the modulation after the lead-in | 8 | — |
+| `driftHoldRamp` | `RangeFrac` | bound on excursions, ± fraction of base | 0.12 | 0.10–0.15 |
+| | `HoldMin` | minimum hold, intervals | 6 | 4–8 |
+| | `HoldExtraMean` | mean of the geometric extra hold, intervals (mean hold = HoldMin + HoldExtraMean) | 8 | 4–12 |
+| | `RampFrac` | interval change per interval on a ramp | 0.01 | 0.005–0.02 for model fitting |
+| | `MinStepFrac` | minimum change between successive targets | 0.06 | 0.04–0.10 |
+
+Notes on the methods:
+
+- **Random walk.** Long-run SD of the interval ≈ `StepFrac / sqrt(1 − Rho²)`
+  (about 6.4% with the defaults, a little less once reflected). With the defaults
+  most long streams touch the bound at some point; `BoundHits` records how often.
+- **Multisine.** The worst-case peak is `RmsFrac × sqrt(2K)` for `K` frequencies
+  (about 14% with the defaults, reached only when all components line up), so the
+  defaults leave the ±15% bound very rarely (well under 1% of 90-interval streams).
+  Out of bounds is an error, not a silent fix: lower `RmsFrac`, raise `RangeFrac`,
+  or draw again. Use frequencies that are not integer multiples of each other;
+  harmonic sets repeat and can be learned.
+- **Hold-and-ramp.** The drift itself begins with a hold at the base interval, so
+  the stream is steady for `SteadyIntervals` plus the first hold before the first
+  ramp. Holds have **no maximum**: a cap would make ramp onsets predictable. On a
+  long ramp the linear model predicts a steady lag of about
+  `RampFrac × baseInterval / β` ms behind the pacer. Ramps steeper than about 0.02
+  per interval drive asynchronies outside normal tapping variability, where the
+  linear model no longer describes the response.
+
 ### Trial construction
 
 - `tapping.newTrial()` — a blank trial struct with every field defaulted
   (mirrors the C# constructor). Both pattern fields default to empty; both
   silent-tail fields default to 0; `TapEvokedAudioEnabled` defaults to false and
-  `TapEvokedAudioDelay` to 0.
+  `TapEvokedAudioDelay` to 0; both drift fields default to empty (not drifted).
 - `tapping.makeProfile(item, values)` — one ParameterProfile. For no parameter profile, 
   assign an empty array — `t.ParameterProfiles = []` — never tapping.makeProfile.empty 
   or any other form.
@@ -340,16 +496,18 @@ functions as `tapping.<name>(...)`.
 - `tapping.writeTrialList(trials, name, seed [, folder] [, TableInfo=info])` —
   encode and write `Tapping.<name>.json`. Owns the filename contract, the
   provenance stamp, and the array-wrapping discipline, so **generators do not call
-  `num2cell`** and assign plain numeric vectors. When a generator drew from an
+  `num2cell`** and assign plain numeric vectors. It omits empty drift records and
+  wraps the arrays inside present ones. When a generator drew from an
   interval table, pass the `info` from `loadIntervalTable` as `TableInfo=info`; it
   is stamped into provenance so the record is reproducible against the exact table
   drawn from (same seed on a changed table is a different draw).
 - `tapping.validateTrialList(jsonPath)` — structural/sanity gate over a written
   file. Returns `report.ok` and prints every issue.
 - `tapping.previewList(src)` — run-scale table, one row per trial (order,
-  A/B balance, durations).
+  A/B balance, durations, drift method).
 - `tapping.previewTrial(trial)` — per-trial view (onset times, jitter, profiles,
-  and each stream's repeating unit with its repeat/remainder against the stream).
+  and each stream's repeating unit with its repeat/remainder against the stream;
+  for a drifted stream, the lead-in, ramps and bounds).
 - `tapping.patternLength(pattern, intervals)` — the period of a stream under the
   empty-means-non-repeating convention: `numel(pattern)` if present, else
   `numel(intervals)`. **Analysis must call this**, not `numel(pattern)` directly
@@ -397,7 +555,9 @@ empty (`newTrial` already defaults it so). **Never** set a pattern by copying or
 re-measuring the flattened intervals: the pattern is the *unit*, and after tiling
 the unit's length is unrecoverable from the flattened vector. This mirrors the
 seed discipline — the number that defines the structure is recorded by the step
-that knows it, at the moment it knows it.
+that knows it, at the moment it knows it. The drift record follows the same rule:
+it is produced by the drift primitive, assigned with its intervals, and never
+written by hand or left describing a vector that was changed afterward.
 
 ---
 
@@ -413,21 +573,29 @@ non-repeating case. A silent-tail field is a non-negative integer not exceeding
 its stream's length (a tail equal to the full length is legal but silences the
 stream entirely — the preview shows it); `TapEvokedAudioEnabled` is a boolean;
 `TapEvokedAudioDelay` is a non-negative integer, and a nonzero delay with
-`TapEvokedAudioEnabled` false is an **error** (a probable authoring mistake). The
+`TapEvokedAudioEnabled` false is an **error** (a probable authoring mistake). A
+drift record, when present, must agree with its stream: a known `Method`, an empty
+pattern field, the first `SteadyIntervals` intervals equal to `BaseInterval`,
+every interval inside the `RangeFrac` bound, and (hold-and-ramp) ordered ramp
+indices within the stream; `DistractorDrift` without a distractor is an error.
+Parameter values outside the suggested ranges are **not** errors. The
 gate deliberately does **not** judge whether the experiment is the one you
 intended — a well-formed file that implements the wrong idea passes, and in
 particular it does not judge whether a unit tiles the way you meant. Run it on
 every file before the HTS sees it.
 
 **The previews — is it the experiment you meant?** Human judgment. `previewList`
-shows the run's composition (order, balance, durations); `previewTrial` shows one
-trial's structure (onset times, jitter, phase, profiles) — and, for a tiled
-stream, the repeating unit with its repeat count and remainder against the
-stream, flagging a non-dividing drift; the audible span and any silent tail; and
-whether the tap-evoked pathway is enabled and which profiles are tap-indexed. This
-is where valid-but-wrong is caught — a looping distractor that drifts, an A/B
-imbalance, a frequency ramp that isn't what you pictured, a silent tail longer or
-shorter than intended. Nothing is malformed, so only a human looking can catch it.
+shows the run's composition (order, balance, durations, which trials drift);
+`previewTrial` shows one trial's structure (onset times, jitter, phase, profiles)
+— and, for a tiled stream, the repeating unit with its repeat count and remainder
+against the stream, flagging a non-dividing drift; the audible span and any silent
+tail; whether the tap-evoked pathway is enabled and which profiles are
+tap-indexed; and, for a drifted stream, the interval trace with its steady
+lead-in, ramps and bounds. This is where valid-but-wrong is caught — a looping
+distractor that drifts, an A/B imbalance, a frequency ramp that isn't what you
+pictured, a silent tail longer or shorter than intended, a drift that wanders less
+(or more) than you meant. Nothing is malformed, so only a human looking can catch
+it.
 
 Neither is ground truth. Both model the HTS's *reading* of the file. The only
 ground truth for timing is the recorded WAV and its loopback fiducial.
@@ -441,8 +609,8 @@ binding, profile values, an enable flag. It has no knowledge of how those number
 were produced. So a change is **free** (no HTS change, no plumbing) exactly when it
 can be expressed as *different numbers in the existing fields*: new pattern rules,
 new constraints, new distributions, jitter, balancing, ordering, silent tails,
-draws from a curated interval table, and new `Item` parameters all live entirely
-in the authoring layer.
+draws from a curated interval table, drifting streams, and new `Item` parameters
+all live entirely in the authoring layer.
 
 **A reactive *trigger* is inside the boundary.** The tap-evoked pathway fires a
 sound *in response to* each tap, so its timing is decided at runtime — yet its
@@ -454,11 +622,13 @@ other.
 **The boundary is reached when a pre-computed *value* would have to depend on the
 subject's behavior** — a **closed-loop** condition, where an interval or a
 property is a *function of the subject's response* to a previous event (e.g. "make
-each interval 10% longer than the subject's last tap gap," or "raise the level
-until the subject synchronizes"). Those numbers do not exist until runtime and no
+each interval 10% longer than the subject's last tap gap," "raise the level
+until the subject synchronizes," or "drift the pacer toward the subject's own
+tempo"). Those numbers do not exist until runtime and no
 generator can produce them, so they cannot be pre-computed into a flat plan. That
 is not a new recipe; it is a new HTS capability, and it is outside what this
-contract can express.
+contract can express. (A drifting pacer is *not* closed-loop: its drift is drawn
+ahead of time and is the same whatever the subject does.)
 
 The distinction is **trigger vs. value**: a reactive *trigger* playing pre-drawn
 values is fine (tap-evoked); a *value computed from a response* is not.

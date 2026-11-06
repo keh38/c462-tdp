@@ -22,12 +22,13 @@ function summary = previewList(src)
     end
 
     % header
-    fprintf('  #  %-20s %-3s %4s %6s %7s %-8s %6s %6s  %s\n', ...
-            'Tag', 'Pac', 'nEl', 'IPI', 'dur(s)', 'Dist', 'Lead', 'Off', 'Profile');
-    fprintf('  %s\n', repmat('-', 1, 82));
+    fprintf('  #  %-20s %-3s %4s %6s %-5s %7s %-8s %6s %6s  %s\n', ...
+            'Tag', 'Pac', 'nEl', 'IPI', 'Drift', 'dur(s)', 'Dist', 'Lead', 'Off', 'Profile');
+    fprintf('  %s\n', repmat('-', 1, 88));
 
     rows = repmat(struct('index',0,'tag','','pacer','','nEl',0,'meanIPI',NaN, ...
-                         'durS',0,'dist','','leadIn',0,'offset',0,'profile',''), n, 1);
+                         'drift','','durS',0,'dist','','leadIn',0,'offset',0, ...
+                         'profile',''), n, 1);
     nA = 0; nB = 0; totalDur = 0;
 
     for k = 1:n
@@ -58,18 +59,21 @@ function summary = previewList(src)
         end
 
         prof = profSummary(getProfiles(t));
+        driftStr = driftAbbrev(t, 'PacerDrift');                  % RW | MS | HR | -
+        dd = driftAbbrev(t, 'DistractorDrift');
+        if ~strcmp(dd, '-'), driftStr = [driftStr '/' dd]; end    % pacer/distractor
         if strcmpi(pv, 'A'), nA = nA + 1; elseif strcmpi(pv, 'B'), nB = nB + 1; end
         totalDur = totalDur + durS;
 
-        fprintf('  %2d %-20s %-3s %4d %6s %7.1f %-8s %6g %6g  %s\n', ...
-                k, trunc(tag, 20), pv, nEl, ipiStr, durS, distStr, li, of, prof);
+        fprintf('  %2d %-20s %-3s %4d %6s %-5s %7.1f %-8s %6g %6g  %s\n', ...
+                k, trunc(tag, 20), pv, nEl, ipiStr, driftStr, durS, distStr, li, of, prof);
 
         rows(k) = struct('index', k, 'tag', tag, 'pacer', pv, 'nEl', nEl, ...
-                         'meanIPI', meanIPI, 'durS', durS, 'dist', distStr, ...
-                         'leadIn', li, 'offset', of, 'profile', prof);
+                         'meanIPI', meanIPI, 'drift', driftStr, 'durS', durS, ...
+                         'dist', distStr, 'leadIn', li, 'offset', of, 'profile', prof);
     end
 
-    fprintf('  %s\n', repmat('-', 1, 82));
+    fprintf('  %s\n', repmat('-', 1, 88));
     fprintf('  %d trials, total %.1f s (%.1f min); Pacer A:%d B:%d\n', ...
             n, totalDur, totalDur/60, nA, nB);
 
@@ -78,6 +82,21 @@ end
 
 
 % ==== local plumbing =====================================================
+
+function s = driftAbbrev(t, f)
+% Short drift label for the run table: RW (random walk), MS (multisine),
+% HR (hold-and-ramp), - (not drifted).
+    s = '-';
+    d = getField(t, f, []);
+    if iscell(d) && ~isempty(d), d = d{1}; end
+    if ~isstruct(d) || isempty(d), return; end
+    switch char(string(getField(d(1), 'Method', '')))
+        case 'RandomWalk', s = 'RW';
+        case 'Multisine',  s = 'MS';
+        case 'HoldRamp',   s = 'HR';
+        otherwise,         s = '?';
+    end
+end
 
 function s = profSummary(profs)
     if isempty(profs), s = '-'; return; end
