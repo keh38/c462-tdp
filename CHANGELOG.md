@@ -1,5 +1,11 @@
 # Changelog
 
+### v1.5 (2026-11-11)
+#### Added
+- drifting pacer support
+
+---
+
 ### v1.4 (2026-10-13)
 #### Added
 - delay to activation of tap-evoked audio
