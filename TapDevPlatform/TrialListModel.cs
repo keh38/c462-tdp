@@ -109,4 +109,38 @@ namespace TDP.Tapping   // rename to match your project
         public static string SerializeSubset(IEnumerable<TappingTrialDto> trials)
             => Serialize(new TappingTrialListDto { Trials = new List<TappingTrialDto>(trials)});
     }
+
+    /// <summary>TDP DTO -> shared Tapping types (game/HTS). Update this when the schema grows.</summary>
+    internal static class TrialDtoMapping
+    {
+        public static TappingTrial ToTappingTrial(this TappingTrialDto d) => new TappingTrial
+        {
+            Tag = d.Tag ?? "",
+            Pacer = ParseEnum<PacerStimulus>(d.Pacer, nameof(d.Pacer)),
+            ResponseInstructions = ParseEnum<ResponseInstructions>(d.ResponseInstructions, nameof(d.ResponseInstructions)),
+            LeadIn = (float)d.LeadIn,
+            Offset = (float)d.Offset,
+            PacerIntervals = ToFloat(d.PacerIntervals),
+            DistractorIntervals = ToFloat(d.DistractorIntervals),
+            PacerPattern = ToFloat(d.PacerPattern),
+            DistractorPattern = ToFloat(d.DistractorPattern),
+            ParameterProfiles = d.ParameterProfiles?
+                                     .Select(p => new ParameterProfile { Item = p.Item, Values = ToFloat(p.Values) })
+                                     .ToList() ?? new List<ParameterProfile>(),
+            PacerSilentTail = d.PacerSilentTail,
+            DistractorSilentTail = d.DistractorSilentTail,
+            TapEvokedAudioEnabled = d.TapEvokedAudioEnabled,
+            TapEvokedAudioDelay = d.TapEvokedAudioDelay,
+            PacerDrift = d.PacerDrift,        // already the shared type
+            DistractorDrift = d.DistractorDrift,
+        };
+
+        private static float[] ToFloat(double[] v) =>
+            v == null ? new float[0] : Array.ConvertAll(v, x => (float)x);
+
+        private static T ParseEnum<T>(string s, string field) where T : struct, Enum =>
+            Enum.TryParse(s, ignoreCase: true, out T v) && Enum.IsDefined(typeof(T), v)
+                ? v
+                : throw new FormatException($"{field}: '{s}' is not a valid {typeof(T).Name}");
+    }
 }

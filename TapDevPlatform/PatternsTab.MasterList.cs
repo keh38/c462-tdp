@@ -1,3 +1,4 @@
+using C462.Game.Microglia;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -7,10 +8,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-
+using System.Xml;
+using System.Xml.Serialization;
 using TDP.Api;
 using TDP.Sessions;
 using TDP.Tapping;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace TapDevPlatform
 { 
@@ -27,6 +30,7 @@ namespace TapDevPlatform
         private Guid _highlightGeneratorId = Guid.Empty;   // newest batch, for row highlighting
         private GeneratorRun _tweakTarget;                 // set when "tweak this generator" is armed
         private bool _suppressAutosave;                    // guards bulk rebuilds (load) from thrashing saves
+        private string _lastGameExportPath;                // last file path used for exporting to Microglia
 
         private static readonly Color NewBatchColor = Color.FromArgb(232, 245, 233); // faint green
 
@@ -189,6 +193,8 @@ namespace TapDevPlatform
             var menu = new ContextMenuStrip();
             menu.Items.Add("Tweak this generator\u2026", null, (s, e) => TweakSelectedGenerator());
             menu.Items.Add("Delete trial(s)", null, (s, e) => DeleteSelectedTrials());
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("Export trial(s) for game\u2026", null, (s, e) => ExportSelectedTrials());
             g.ContextMenuStrip = menu;
         }
 
@@ -340,6 +346,71 @@ namespace TapDevPlatform
                 $"Tweaking generator \u201c{run.Name}\u201d \u2014 describe your change and send.",
                 NoteColor, boldLabel: true);
             inputTextBox.Focus();
+        }
+
+        // ----- export trials to game Microglia level definition ------------------
+
+        private void ExportSelectedTrials()
+        {
+            var exported = SelectedEntriesInGridOrder();
+            if (exported.Count == 0) return;
+
+            using var dlg = new SaveFileDialog
+            {
+                Title = "Export selected trials for game",
+                Filter = "Microglia level definition (*.xml)|*.xml|All files (*.*)|*.*",
+                FileName = _lastGameExportPath ?? "Microglia.Level01.xml",
+                OverwritePrompt = false
+            };
+
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+
+            MicrogliaLevelDefinition existingLevelDef = null;
+
+            if (File.Exists(dlg.FileName))
+            {
+                var confirm = MessageBox.Show(
+                    $"Merge with existing {Path.GetFileName(dlg.FileName)}? (No = overwrite)",
+                    "Confirm merge", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                if (confirm == DialogResult.Cancel) return;
+
+                if (confirm == DialogResult.Yes)
+                {
+                    try
+                    {
+                        existingLevelDef = KLib.IO.Files.XmlDeserialize<MicrogliaLevelDefinition>(dlg.FileName);
+                    }
+                    catch
+                    {
+                        existingLevelDef = null;
+                        MessageBox.Show($"Failed to read existing level definition from {dlg.FileName}. Overwriting instead.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+
+            }
+
+            var levelDef = new MicrogliaLevelDefinition
+            {
+                Name = Path.GetFileNameWithoutExtension(dlg.FileName),   // or keep "MicrogliaLevel"
+                MicrogliaDefinitions = exported
+                    .Select(e => new MicrogliaDefinition
+                    {
+                        TappingConfigurationFile = _currentConfig.Name,
+                        TappingTrial = e.Trial.ToTappingTrial()
+                    })
+                    .ToList()
+            };
+
+            if (existingLevelDef != null)
+            {
+                existingLevelDef.MicrogliaDefinitions.AddRange(levelDef.MicrogliaDefinitions);
+                levelDef = existingLevelDef;   // merge into the existing definition
+            }
+
+            KLib.IO.Files.XmlSerialize(levelDef, dlg.FileName);
+
+            _lastGameExportPath = dlg.FileName;
         }
 
         /// <summary>
